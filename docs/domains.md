@@ -1,0 +1,6 @@
+Sales
+Inventory
+Payments
+Customers
+Suppliers
+Reporting
