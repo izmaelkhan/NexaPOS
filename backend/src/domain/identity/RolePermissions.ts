@@ -24,9 +24,7 @@ export const RolePermissions: Record<RoleType, PermissionType[]> = {
 /**
  * Helper: check if role has permission
  */
-export function hasPermission(
-  role: RoleType,
-  permission: PermissionType
-): boolean {
+export function hasPermission(role: RoleType, permission: PermissionType): boolean {
+  if (!RolePermissions[role]) return false; // ✅ IMPORTANT FIX
   return RolePermissions[role].includes(permission);
 }

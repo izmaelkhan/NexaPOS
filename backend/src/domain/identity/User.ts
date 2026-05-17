@@ -1,9 +1,12 @@
+import { RoleType } from "./Roles";
+
 export class User {
   public readonly id: string;
   public readonly name: string;
   public readonly email: string;
   public readonly passwordHash: string;
   public readonly roleId: string;
+  public readonly role: RoleType;
   public isActive: boolean;
 
   constructor(params: {
@@ -12,33 +15,17 @@ export class User {
     email: string;
     passwordHash: string;
     roleId: string;
+    role: RoleType;
     isActive?: boolean;
   }) {
-    const { id, name, email, passwordHash, roleId, isActive = true } = params;
-
-    // =====================
-    // Business Rules
-    // =====================
-
-    if (!email.includes("@")) {
-      throw new Error("Invalid email format");
-    }
-
-    if (!passwordHash || passwordHash.length < 10) {
-      throw new Error("Password must be properly hashed");
-    }
-
-    this.id = id;
-    this.name = name;
-    this.email = email.toLowerCase();
-    this.passwordHash = passwordHash;
-    this.roleId = roleId;
-    this.isActive = isActive;
+    this.id = params.id;
+    this.name = params.name;
+    this.email = params.email;
+    this.passwordHash = params.passwordHash;
+    this.roleId = params.roleId;
+    this.role = params.role;
+    this.isActive = params.isActive ?? true;
   }
-
-  // =====================
-  // Domain Behaviors
-  // =====================
 
   deactivate() {
     this.isActive = false;
@@ -46,17 +33,5 @@ export class User {
 
   activate() {
     this.isActive = true;
-  }
-
-  canLogin(): boolean {
-    return this.isActive;
-  }
-
-  updateName(name: string) {
-    if (!name || name.trim().length < 2) {
-      throw new Error("Name too short");
-    }
-
-    (this as any).name = name;
   }
 }

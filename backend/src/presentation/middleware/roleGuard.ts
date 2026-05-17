@@ -14,7 +14,7 @@ export function roleGuard(allowedRoles: RoleType[]) {
         });
       }
 
-      const userRole: RoleType = req.user.role;
+      const userRole = req.user.role as RoleType;
 
       // =====================
       // 2. Check role permission

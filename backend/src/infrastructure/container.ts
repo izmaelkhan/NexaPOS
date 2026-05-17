@@ -1,10 +1,10 @@
-import {PrismaClient} from "@prisma/client";
+// Import the generated Prisma client. The client is generated under the
+// "generated/prisma" directory relative to the project root.
+import { PrismaClient, Prisma } from "../../generated/prisma/client";
 
-// =====================
-// Prisma instance
-// =====================
-const prisma = new PrismaClient();
-
+export const prisma = new PrismaClient({
+  log: ['query', 'error'],
+} as Prisma.PrismaClientOptions);
 // =====================
 // Repositories (interfaces → implementations)
 // =====================
@@ -37,8 +37,14 @@ class CustomerRepository implements ICustomerRepository {
 export const container = {
   prisma,
 
+  // Use getters so `container.repositories.productRepository` returns an instance
+  // and the underlying `ProductRepository` constructor receives the required PrismaClient.
   repositories: {
-    productRepository: new ProductRepository(prisma),
-    customerRepository: new CustomerRepository(prisma),
+    get productRepository() {
+      return new ProductRepository(prisma);
+    },
+    get customerRepository() {
+      return new CustomerRepository(prisma);
+    },
   },
 };

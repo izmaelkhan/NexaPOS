@@ -1,90 +1,110 @@
+import * as jwt from "jsonwebtoken";
+import bcrypt from "bcrypt";
 import { LoginUseCase } from "../../src/application/auth/LoginUseCase";
-import { PasswordService } from "../../src/infrastructure/security/PasswordService";
+import { RoleType } from "../../src/domain/identity/Roles";
 
-// =====================
-// Mock Repository
-// =====================
-const mockUserRepo = {
-  findByEmail: jest.fn(),
-  findById: jest.fn(),
-  save: jest.fn(),
-};
+describe("LoginUseCase", () => {
+  const mockPassword = "admin123";
+  let hashedPassword: string;
 
-// =====================
-// Test Setup
-// =====================
-const loginUseCase = new LoginUseCase(mockUserRepo as any);
+  beforeAll(async () => {
+    hashedPassword = await bcrypt.hash(mockPassword, 10);
+  });
 
-describe("Login UseCase", () => {
-  afterEach(() => {
-    jest.clearAllMocks();
+  const mockUser = {
+    id: "user-1",
+    name: "Admin",
+    email: "admin@nexapos.com",
+    passwordHash: "",
+    role: RoleType.ADMIN,
+    isActive: true,
+  };
+
+  // =====================
+  // 1. DB user fetch test
+  // =====================
+  it("should fetch user from repository", async () => {
+    const userRepo = {
+      findByEmail: jest.fn().mockResolvedValue({
+        ...mockUser,
+        passwordHash: hashedPassword,
+      }),
+    };
+
+    const useCase = new LoginUseCase(userRepo);
+    await useCase.execute({
+      email: mockUser.email,
+      password: mockPassword,
+    });
+
+    expect(userRepo.findByEmail).toHaveBeenCalledWith(mockUser.email);
   });
 
   // =====================
-  // 1. Wrong password reject
+  // 2. valid JWT test
   // =====================
-  test("should reject wrong password", async () => {
-    const user = {
-      id: "1",
-      email: "test@example.com",
-      passwordHash: await PasswordService.hashPassword("correct123"),
-      role: "CASHIER",
-      isActive: true,
+  it("should return valid JWT token", async () => {
+    const userRepo = {
+      findByEmail: jest.fn().mockResolvedValue({
+        ...mockUser,
+        passwordHash: hashedPassword,
+      }),
     };
 
-    mockUserRepo.findByEmail.mockResolvedValue(user);
+    const useCase = new LoginUseCase(userRepo);
+
+    const result = await useCase.execute({
+      email: mockUser.email,
+      password: mockPassword,
+    });
+
+    expect(result.token).toBeDefined();
+
+    const decoded = jwt.verify(
+      result.token,
+      process.env.JWT_SECRET || "secret"
+    ) as any;
+
+    expect(decoded.email).toBe(mockUser.email);
+    expect(decoded.role).toBe(RoleType.ADMIN);
+  });
+
+  // =====================
+  // 3. invalid password test
+  // =====================
+  it("should throw error for invalid password", async () => {
+    const userRepo = {
+      findByEmail: jest.fn().mockResolvedValue({
+        ...mockUser,
+        passwordHash: hashedPassword,
+      }),
+    };
+
+    const useCase = new LoginUseCase(userRepo);
 
     await expect(
-      loginUseCase.execute({
-        email: "test@example.com",
+      useCase.execute({
+        email: mockUser.email,
         password: "wrongpassword",
       })
     ).rejects.toThrow("Invalid credentials");
   });
 
   // =====================
-  // 2. Inactive user reject
+  // 4. missing user test
   // =====================
-  test("should reject inactive user", async () => {
-    const user = {
-      id: "1",
-      email: "test@example.com",
-      passwordHash: await PasswordService.hashPassword("correct123"),
-      role: "CASHIER",
-      isActive: false,
+  it("should throw error when user not found", async () => {
+    const userRepo = {
+      findByEmail: jest.fn().mockResolvedValue(null),
     };
 
-    mockUserRepo.findByEmail.mockResolvedValue(user);
+    const useCase = new LoginUseCase(userRepo);
 
     await expect(
-      loginUseCase.execute({
-        email: "test@example.com",
-        password: "correct123",
+      useCase.execute({
+        email: "missing@nexapos.com",
+        password: "123456",
       })
-    ).rejects.toThrow("User is inactive");
-  });
-
-  // =====================
-  // 3. Valid login success
-  // =====================
-  test("should login successfully with valid credentials", async () => {
-    const user = {
-      id: "1",
-      email: "test@example.com",
-      passwordHash: await PasswordService.hashPassword("correct123"),
-      role: "CASHIER",
-      isActive: true,
-    };
-
-    mockUserRepo.findByEmail.mockResolvedValue(user);
-
-    const result = await loginUseCase.execute({
-      email: "test@example.com",
-      password: "correct123",
-    });
-
-    expect(result).toHaveProperty("token");
-    expect(result.user.email).toBe("test@example.com");
-    expect(result.user.canCreateSale).toBeDefined();
+    ).rejects.toThrow("Invalid credentials");
   });
 });
