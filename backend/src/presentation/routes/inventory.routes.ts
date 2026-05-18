@@ -1,35 +1,45 @@
 import express from "express";
 import { authMiddleware } from "../middleware/authMiddleware";
+import { roleGuard } from "../middleware/roleGuard";
+import { StockService } from "../../application/inventory/StockService";
+import { StockMovementType } from "../../domain/inventory/StockMovement";
 import { RoleType } from "../../domain/identity/Roles";
-import {roleGuard} from "../middleware/roleGuard";
+
 
 const router = express.Router();
 
-// =====================
-// GET INVENTORY
-// =====================
-router.get("/", 
-  authMiddleware, 
+const stockService = new StockService({
+  save: async (movement) => {
+    // TEMP: replace with repository later
+    console.log("movement saved:", movement);
+  },
+});
+
+/**
+ * =========================
+ * STOCK MOVEMENT
+ * /inventory/move
+ * =========================
+ */
+router.post(
+  "/move",
+  authMiddleware,
   roleGuard([RoleType.ADMIN, RoleType.MANAGER]),
-  (req, res) => {
-  res.json({
-    message: "Inventory access granted",
-    user: (req as any).user,
-  });
-});
+  async (req, res) => {
+    const { productId, branchId, quantity, type } = req.body;
 
-// =====================
-// UPDATE STOCK (example)
-// =====================
-router.put("/inventory/:productId", authMiddleware, (req, res) => {
-  const { productId } = req.params;
+    const movement = await stockService.increaseStock({
+      productId,
+      branchId,
+      quantity,
+      type: type || StockMovementType.IN,
+    });
 
-  res.json({
-    message: "Inventory updated successfully",
-    productId,
-    updatedBy: (req as any).user,
-    data: req.body,
-  });
-});
+    res.json({
+      message: "Stock movement recorded",
+      data: movement,
+    });
+  }
+);
 
 export default router;

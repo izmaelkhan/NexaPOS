@@ -8,7 +8,7 @@ describe("Product Domain", () => {
         id: "1",
         name: "Test Product",
         sku: "SKU-1",
-        price: 0,        // invalid
+        price: 0,
         costPrice: 10,
         stock: 5,
         categoryId: "cat-1"
@@ -24,10 +24,10 @@ describe("Product Domain", () => {
         sku: "SKU-1",
         price: 100,
         costPrice: 50,
-        stock: -5,       // invalid
+        stock: -5,
         categoryId: "cat-1"
       });
-    }).toThrow("Stock cannot be less than 0");
+    }).toThrow("Stock cannot be negative");
   });
 
   test("should allow valid product creation", () => {

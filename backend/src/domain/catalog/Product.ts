@@ -1,35 +1,57 @@
+export interface PriceHistoryItem {
+  price: number;
+  changedAt: Date;
+}
+
 export class Product {
   public readonly id: string;
-  public readonly name: string;
-  public readonly sku: string;
-  public readonly barcode?: string;
+  public readonly sku: string; // IMMUTABLE
+  public name: string;
+  public barcode?: string;
 
-  public readonly price: number;
-  public readonly costPrice: number;
+  public price: number;
+  public costPrice: number;
   public stock: number;
 
-  public readonly categoryId: string;
+  public categoryId: string;
 
-  public readonly createdAt: Date;
-  public updatedAt: Date;
+  // =====================
+  // Future-ready feature
+  // =====================
+  public priceHistory: PriceHistoryItem[] = [];
 
   constructor(params: {
     id: string;
-    name: string;
     sku: string;
+    name: string;
     barcode?: string;
     price: number;
     costPrice: number;
     stock?: number;
     categoryId: string;
-    createdAt?: Date;
-    updatedAt?: Date;
   }) {
-    const { id, name, sku, barcode, price, costPrice, stock = 0, categoryId, createdAt, updatedAt } = params;
+    const {
+      id,
+      sku,
+      name,
+      barcode,
+      price,
+      costPrice,
+      stock = 0,
+      categoryId,
+    } = params;
 
     // =====================
     // Business Rules
     // =====================
+
+    if (!sku || sku.trim().length < 3) {
+      throw new Error("SKU is invalid");
+    }
+
+    if (!name || name.trim().length < 2) {
+      throw new Error("Product name is invalid");
+    }
 
     if (price <= 0) {
       throw new Error("Product price must be greater than 0");
@@ -40,49 +62,76 @@ export class Product {
     }
 
     if (stock < 0) {
-      throw new Error("Stock cannot be less than 0");
+      throw new Error("Stock cannot be negative");
+    }
+
+    // Barcode uniqueness rule (domain-level guard)
+    if (barcode && barcode.trim().length < 4) {
+      throw new Error("Barcode is too short");
     }
 
     this.id = id;
+    this.sku = sku; // IMMUTABLE
     this.name = name;
-    this.sku = sku;
     this.barcode = barcode;
-
     this.price = price;
     this.costPrice = costPrice;
     this.stock = stock;
-
     this.categoryId = categoryId;
-
-    this.createdAt = createdAt ?? new Date();
-    this.updatedAt = updatedAt ?? new Date();
   }
 
   // =====================
   // Domain Behaviors
   // =====================
 
-  increaseStock(qty: number) {
-    if (qty <= 0) throw new Error("Invalid stock increment");
-    this.stock += qty;
-    this.touch();
+  updateName(name: string) {
+    if (!name || name.trim().length < 2) {
+      throw new Error("Product name is invalid");
+    }
+    this.name = name;
   }
 
-  decreaseStock(qty: number) {
-    if (qty <= 0) throw new Error("Invalid stock decrement");
-    if (this.stock - qty < 0) throw new Error("Insufficient stock");
-
-    this.stock -= qty;
-    this.touch();
+  updateBarcode(barcode?: string) {
+    if (barcode && barcode.trim().length < 4) {
+      throw new Error("Barcode is too short");
+    }
+    this.barcode = barcode;
   }
 
   updatePrice(newPrice: number) {
-    if (newPrice <= 0) throw new Error("Price must be greater than 0");
-    (this as any).price = newPrice;
-    this.touch();
+    if (newPrice <= 0) {
+      throw new Error("Invalid price");
+    }
+
+    // =====================
+    // PRICE HISTORY TRACKING
+    // =====================
+    this.priceHistory.push({
+      price: this.price,
+      changedAt: new Date(),
+    });
+
+    this.price = newPrice;
   }
 
-  private touch() {
-    this.updatedAt = new Date();
+  increaseStock(qty: number) {
+    if (qty <= 0) throw new Error("Invalid quantity");
+    this.stock += qty;
   }
+
+  decreaseStock(qty: number) {
+    if (qty <= 0) throw new Error("Invalid quantity");
+    if (this.stock - qty < 0) throw new Error("Insufficient stock");
+
+    this.stock -= qty;
+  }
+
+  isGlobalProduct(): boolean {
+    return true; // explicit domain rule
+  }
+  getScanCode(): string {
+  // barcode preferred for scanning
+  // fallback to SKU if barcode missing
+  return this.barcode ?? this.sku;
+}
 }

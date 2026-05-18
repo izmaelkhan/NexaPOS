@@ -68,4 +68,11 @@ export class StockMovement {
   belongsToBranch(branchId: string): boolean {
     return this.branchId === branchId;
   }
+  isSale(): boolean {
+  return this.type === StockMovementType.SALE;
+}
+
+isReturn(): boolean {
+  return this.type === StockMovementType.RETURN;
+}
 }
