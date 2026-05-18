@@ -21,6 +21,19 @@ describe("LoginUseCase", () => {
   };
 
   // =====================
+  // Mock Repos (IMPORTANT FIX)
+  // =====================
+  const createUseCase = (userRepoMock: any) => {
+    const userBranchRepoMock = {
+      findByUserId: jest.fn().mockResolvedValue([
+        { branchId: "B1", isMain: true },
+      ]),
+    };
+
+    return new LoginUseCase(userRepoMock, userBranchRepoMock);
+  };
+
+  // =====================
   // 1. DB user fetch test
   // =====================
   it("should fetch user from repository", async () => {
@@ -31,7 +44,8 @@ describe("LoginUseCase", () => {
       }),
     };
 
-    const useCase = new LoginUseCase(userRepo);
+    const useCase = createUseCase(userRepo);
+
     await useCase.execute({
       email: mockUser.email,
       password: mockPassword,
@@ -51,7 +65,7 @@ describe("LoginUseCase", () => {
       }),
     };
 
-    const useCase = new LoginUseCase(userRepo);
+    const useCase = createUseCase(userRepo);
 
     const result = await useCase.execute({
       email: mockUser.email,
@@ -80,7 +94,7 @@ describe("LoginUseCase", () => {
       }),
     };
 
-    const useCase = new LoginUseCase(userRepo);
+    const useCase = createUseCase(userRepo);
 
     await expect(
       useCase.execute({
@@ -98,7 +112,7 @@ describe("LoginUseCase", () => {
       findByEmail: jest.fn().mockResolvedValue(null),
     };
 
-    const useCase = new LoginUseCase(userRepo);
+    const useCase = createUseCase(userRepo);
 
     await expect(
       useCase.execute({

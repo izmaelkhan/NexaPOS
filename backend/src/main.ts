@@ -4,6 +4,9 @@ import authRouter from "./presentation/routes/auth.routes";
 import productRouter from "./presentation/routes/product.routes";
 import salesRouter from "./presentation/routes/sales.routes";
 import inventoryRouter from "./presentation/routes/inventory.routes";
+import storeRouter from "./presentation/routes/store.routes";
+import branchRouter from "./presentation/routes/branch.routes";
+import branchSwitchRouter from "./presentation/routes/branchSwitch.routes";
 
 config();
 
@@ -20,9 +23,14 @@ app.get("/health", (req: Request, res: Response) => {
 
 // bind auth routes
 app.use("/auth", authRouter);
+
 app.use("/products", productRouter);
 app.use("/sales", salesRouter);
 app.use("/inventory", inventoryRouter);
+
+app.use("/stores", storeRouter);
+app.use("/branches", branchRouter);
+app.use("/branch-switch", branchSwitchRouter);
 
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
