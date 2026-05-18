@@ -1,62 +1,122 @@
+export enum SaleStatus {
+  DRAFT = "DRAFT",
+  PENDING = "PENDING",
+  PAID = "PAID",
+  COMPLETED = "COMPLETED",
+  CANCELLED = "CANCELLED",
+}
+
 export class Sale {
   public readonly id: string;
   public readonly branchId: string;
   public readonly customerId?: string;
-  public readonly totalAmount: number;
 
-  public readonly createdAt: Date;
-  public readonly updatedAt: Date;
+  public total: number;
+  public status: SaleStatus;
 
   constructor(params: {
     id: string;
     branchId: string;
     customerId?: string;
-    totalAmount: number;
-    createdAt?: Date;
-    updatedAt?: Date;
+    total?: number;
+    status?: SaleStatus;
   }) {
     const {
       id,
       branchId,
       customerId,
-      totalAmount,
-      createdAt = new Date(),
-      updatedAt = new Date(),
+      total = 0,
+      status = SaleStatus.DRAFT,
     } = params;
 
-    // =====================
-    // Business Rules
-    // =====================
-
-    if (!branchId) {
-      throw new Error("BranchId is required for every sale");
-    }
-
-    if (totalAmount < 0) {
-      throw new Error("Total amount cannot be negative");
-    }
+    if (!id) throw new Error("SaleId is required");
+    if (!branchId) throw new Error("BranchId is required");
+    if (total < 0) throw new Error("Total cannot be negative");
 
     this.id = id;
     this.branchId = branchId;
     this.customerId = customerId;
-    this.totalAmount = totalAmount;
-    this.createdAt = createdAt;
-    this.updatedAt = updatedAt;
+    this.total = total;
+    this.status = status;
   }
 
-  // =====================
-  // Domain Logic
-  // =====================
+  // =========================
+  // STATE TRANSITIONS (CORE)
+  // =========================
 
-  isForBranch(branchId: string): boolean {
+  submitForPayment() {
+    if (this.status !== SaleStatus.DRAFT) {
+      throw new Error("Only DRAFT sales can be submitted for payment");
+    }
+
+    this.status = SaleStatus.PENDING;
+  }
+
+  markAsPaid() {
+    if (this.status !== SaleStatus.PENDING) {
+      throw new Error("Only PENDING sales can be marked as paid");
+    }
+
+    this.status = SaleStatus.PAID;
+  }
+
+  complete() {
+    if (this.status !== SaleStatus.PAID) {
+      throw new Error("Only PAID sales can be completed");
+    }
+
+    this.status = SaleStatus.COMPLETED;
+  }
+
+  cancel() {
+    if (this.status === SaleStatus.COMPLETED) {
+      throw new Error("Completed sales cannot be cancelled");
+    }
+
+    if (this.status === SaleStatus.CANCELLED) {
+      throw new Error("Sale is already cancelled");
+    }
+
+    this.status = SaleStatus.CANCELLED;
+  }
+
+  // =========================
+  // BUSINESS HELPERS
+  // =========================
+
+  isDraft(): boolean {
+    return this.status === SaleStatus.DRAFT;
+  }
+
+  isPending(): boolean {
+    return this.status === SaleStatus.PENDING;
+  }
+
+  isPaid(): boolean {
+    return this.status === SaleStatus.PAID;
+  }
+
+  isCompleted(): boolean {
+    return this.status === SaleStatus.COMPLETED;
+  }
+
+  isCancelled(): boolean {
+    return this.status === SaleStatus.CANCELLED;
+  }
+
+  belongsToBranch(branchId: string): boolean {
     return this.branchId === branchId;
   }
 
-  updateTotalAmount(amount: number) {
-    if (amount < 0) {
-      throw new Error("Total amount cannot be negative");
+  updateTotal(total: number) {
+    if (total < 0) {
+      throw new Error("Total cannot be negative");
     }
 
-    (this as any).totalAmount = amount;
+    if (this.status !== SaleStatus.DRAFT) {
+      throw new Error("Cannot update total after checkout started");
+    }
+
+    this.total = total;
   }
 }
