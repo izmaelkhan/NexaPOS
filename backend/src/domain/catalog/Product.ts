@@ -1,3 +1,4 @@
+import { InventoryGuard } from "../inventory/InventoryGuard";
 export interface PriceHistoryItem {
   price: number;
   changedAt: Date;
@@ -134,4 +135,46 @@ export class Product {
   // fallback to SKU if barcode missing
   return this.barcode ?? this.sku;
 }
+updateCostPriceOnPurchase(params: {
+  receivedQuantity: number;
+  purchaseCostPrice: number;
+}) {
+  const { receivedQuantity, purchaseCostPrice } = params;
+
+  if (receivedQuantity <= 0) {
+    throw new Error("Invalid received quantity");
+  }
+
+  if (purchaseCostPrice <= 0) {
+    throw new Error("Invalid cost price");
+  }
+
+  // =========================
+  // CURRENT VALUES
+  // =========================
+  const currentStock = this.stock;
+  const currentCost = this.costPrice;
+
+  // =========================
+  // WEIGHTED AVERAGE FORMULA
+  // =========================
+  const totalOldValue = currentStock * currentCost;
+  const newValue = receivedQuantity * purchaseCostPrice;
+
+  const newStock = currentStock + receivedQuantity;
+
+  if (newStock === 0) {
+    this.costPrice = purchaseCostPrice;
+    return;
+  }
+
+  this.costPrice = (totalOldValue + newValue) / newStock;
+}
+// =====================
+  // SAFE RULE (BLOCK DIRECT UPDATE)
+  // =====================
+
+  updateStockManually() {
+    InventoryGuard.preventDirectStockUpdate();
+  }
 }

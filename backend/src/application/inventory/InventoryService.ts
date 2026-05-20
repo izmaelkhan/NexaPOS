@@ -32,7 +32,7 @@ export class InventoryService {
       id: crypto.randomUUID(),
       productId: params.productId,
       branchId: params.branchId,
-      type: StockMovementType.SALE,
+      type: StockMovementType.SALE_OUT,
       quantity: params.quantity,
       referenceId: params.referenceId,
     });
@@ -53,7 +53,7 @@ export class InventoryService {
       id: crypto.randomUUID(),
       productId: params.productId,
       branchId: params.branchId,
-      type: StockMovementType.IN,
+      type: StockMovementType.PURCHASE_IN,
       quantity: params.quantity,
       referenceId: params.referenceId,
     });

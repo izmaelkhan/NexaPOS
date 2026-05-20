@@ -1,3 +1,4 @@
+import { InventoryGuard } from "./InventoryGuard";
 export class BranchStock {
   public readonly id: string;
   public readonly productId: string;
@@ -52,5 +53,12 @@ export class BranchStock {
   // =====================
   belongsToBranch(branchId: string): boolean {
     return this.branchId === branchId;
+  }
+  // =====================
+  // BLOCK DIRECT STOCK EDIT
+  // =====================
+
+  updateStockManually() {
+    InventoryGuard.preventDirectStockUpdate();
   }
 }

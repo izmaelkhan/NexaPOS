@@ -1,8 +1,8 @@
 export enum StockMovementType {
-  IN = "IN",         // stock add (purchase/restock)
-  OUT = "OUT",       // stock remove (damage/manual)
-  SALE = "SALE",     // sale deduction
-  RETURN = "RETURN", // customer return
+  PURCHASE_IN = "PURCHASE_IN",
+  SALE_OUT = "SALE_OUT",
+  RETURN_IN = "RETURN_IN",
+  ADJUSTMENT = "ADJUSTMENT",
 }
 
 export class StockMovement {
@@ -52,12 +52,15 @@ export class StockMovement {
   // =====================
 
   isInMovement(): boolean {
-    return this.type === StockMovementType.IN || this.type === StockMovementType.RETURN;
-  }
+  return (
+    this.type === StockMovementType.PURCHASE_IN ||
+    this.type === StockMovementType.RETURN_IN
+  );
+}
 
-  isOutMovement(): boolean {
-    return this.type === StockMovementType.OUT || this.type === StockMovementType.SALE;
-  }
+isOutMovement(): boolean {
+  return this.type === StockMovementType.SALE_OUT;
+}
 
   getSignedQuantity(): number {
     // IN/RETURN => + stock
@@ -69,10 +72,10 @@ export class StockMovement {
     return this.branchId === branchId;
   }
   isSale(): boolean {
-  return this.type === StockMovementType.SALE;
+  return this.type === StockMovementType.SALE_OUT;
 }
 
 isReturn(): boolean {
-  return this.type === StockMovementType.RETURN;
+  return this.type === StockMovementType.RETURN_IN;
 }
 }

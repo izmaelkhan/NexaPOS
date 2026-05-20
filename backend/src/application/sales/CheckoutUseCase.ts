@@ -104,7 +104,7 @@ export class CheckoutUseCase {
           id: crypto.randomUUID(),
           productId: item.productId,
           branchId,
-          type: StockMovementType.SALE,
+          type: StockMovementType.SALE_OUT,
           quantity: item.quantity,
         });
       }

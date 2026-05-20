@@ -20,7 +20,7 @@ describe("Inventory Engine", () => {
       id: "m-1",
       productId: "p-1",
       branchId: "b-1",
-      type: StockMovementType.IN,
+      type: StockMovementType.PURCHASE_IN,
       quantity: 5,
     });
 
@@ -44,7 +44,7 @@ describe("Inventory Engine", () => {
       id: "m-2",
       productId: "p-1",
       branchId: "b-1",
-      type: StockMovementType.SALE,
+      type: StockMovementType.SALE_OUT,
       quantity: 7,
     });
 
@@ -68,7 +68,7 @@ describe("Inventory Engine", () => {
       id: "m-3",
       productId: "p-1",
       branchId: "b-1",
-      type: StockMovementType.SALE,
+      type: StockMovementType.SALE_OUT,
       quantity: 10,
     });
 
@@ -99,7 +99,7 @@ describe("Inventory Engine", () => {
       id: "m-4",
       productId: "p-1",
       branchId: "branch-a",
-      type: StockMovementType.SALE,
+      type: StockMovementType.SALE_OUT,
       quantity: 4,
     });
 
