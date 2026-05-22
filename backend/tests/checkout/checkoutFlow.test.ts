@@ -21,12 +21,16 @@ describe("Checkout Flow", () => {
   const mockInvoiceRepo = {
     getNextSequence: jest.fn().mockResolvedValue(1),
   };
+  const mockCustomerRepo = {
+  findById: jest.fn(),
+};
 
   const useCase = new CheckoutUseCase(
     mockStockRepo,
     mockSaleRepo,
     mockPaymentRepo,
-    mockInvoiceRepo
+    mockInvoiceRepo,
+    mockCustomerRepo
   );
 
   it("should complete checkout successfully (cart → sale)", async () => {

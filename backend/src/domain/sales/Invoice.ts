@@ -1,58 +1,58 @@
 export class Invoice {
   public readonly invoiceNumber: string;
+  public readonly createdAt: Date;
+
+  public creditDue: number;
+  public loyaltyPoints: number;
+  public remainingBalance: number;
 
   constructor(params: {
     sequence: number;
-    year?: number;
+    creditDue?: number;
+    loyaltyPoints?: number;
+    remainingBalance?: number;
   }) {
-    const { sequence, year = new Date().getFullYear() } = params;
+    const {
+      sequence,
+      creditDue = 0,
+      loyaltyPoints = 0,
+      remainingBalance = 0,
+    } = params;
 
     if (sequence <= 0) {
-      throw new Error("Invoice sequence must be greater than 0");
+      throw new Error("Invalid invoice sequence");
     }
 
-    if (!year) {
-      throw new Error("Year is required");
-    }
+    this.invoiceNumber = this.generateInvoiceNumber(sequence);
+    this.createdAt = new Date();
 
-    this.invoiceNumber = Invoice.generateInvoiceNumber(sequence, year);
+    this.creditDue = creditDue;
+    this.loyaltyPoints = loyaltyPoints;
+    this.remainingBalance = remainingBalance;
   }
 
   // =====================
-  // STATIC GENERATOR
+  // INVOICE FORMAT
   // =====================
-  static generateInvoiceNumber(sequence: number, year: number): string {
-    const paddedSequence = sequence.toString().padStart(4, "0");
 
-    return `POS-${year}-${paddedSequence}`;
+  private generateInvoiceNumber(sequence: number): string {
+    const year = new Date().getFullYear();
+    const padded = String(sequence).padStart(4, "0");
+
+    return `POS-${year}-${padded}`;
   }
 
   // =====================
-  // VALIDATION
+  // UPDATE FINANCIAL INFO
   // =====================
-  static isValidFormat(invoiceNumber: string): boolean {
-    const regex = /^POS-\d{4}-\d{4}$/;
-    return regex.test(invoiceNumber);
-  }
 
-  // =====================
-  // PARSE INVOICE
-  // =====================
-  static parse(invoiceNumber: string): {
-    prefix: string;
-    year: number;
-    sequence: number;
-  } {
-    if (!Invoice.isValidFormat(invoiceNumber)) {
-      throw new Error("Invalid invoice format");
-    }
-
-    const [prefix, year, sequence] = invoiceNumber.split("-");
-
-    return {
-      prefix,
-      year: Number(year),
-      sequence: Number(sequence),
-    };
+  updateFinancials(data: {
+    creditDue: number;
+    loyaltyPoints: number;
+    remainingBalance: number;
+  }) {
+    this.creditDue = data.creditDue;
+    this.loyaltyPoints = data.loyaltyPoints;
+    this.remainingBalance = data.remainingBalance;
   }
 }

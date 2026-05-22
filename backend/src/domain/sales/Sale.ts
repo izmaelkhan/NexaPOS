@@ -18,20 +18,28 @@ export class Sale {
     id: string;
     branchId: string;
     customerId?: string;
-    total?: number;
+    total: number;
     status?: SaleStatus;
   }) {
     const {
       id,
       branchId,
       customerId,
-      total = 0,
+      total,
       status = SaleStatus.DRAFT,
     } = params;
 
-    if (!id) throw new Error("SaleId is required");
-    if (!branchId) throw new Error("BranchId is required");
-    if (total < 0) throw new Error("Total cannot be negative");
+    // =====================
+    // VALIDATION
+    // =====================
+
+    if (!branchId) {
+      throw new Error("BranchId is required");
+    }
+
+    if (total < 0) {
+      throw new Error("Sale total cannot be negative");
+    }
 
     this.id = id;
     this.branchId = branchId;
@@ -40,21 +48,24 @@ export class Sale {
     this.status = status;
   }
 
-  // =========================
-  // STATE TRANSITIONS (CORE)
-  // =========================
+  // =====================
+  // STATUS TRANSITIONS
+  // =====================
 
-  submitForPayment() {
+  markAsPending() {
     if (this.status !== SaleStatus.DRAFT) {
-      throw new Error("Only DRAFT sales can be submitted for payment");
+      throw new Error("Only DRAFT sale can become PENDING");
     }
 
     this.status = SaleStatus.PENDING;
   }
 
   markAsPaid() {
-    if (this.status !== SaleStatus.PENDING) {
-      throw new Error("Only PENDING sales can be marked as paid");
+    if (
+      this.status !== SaleStatus.PENDING &&
+      this.status !== SaleStatus.DRAFT
+    ) {
+      throw new Error("Only pending/draft sale can be paid");
     }
 
     this.status = SaleStatus.PAID;
@@ -62,7 +73,7 @@ export class Sale {
 
   complete() {
     if (this.status !== SaleStatus.PAID) {
-      throw new Error("Only PAID sales can be completed");
+      throw new Error("Only PAID sale can be completed");
     }
 
     this.status = SaleStatus.COMPLETED;
@@ -70,53 +81,25 @@ export class Sale {
 
   cancel() {
     if (this.status === SaleStatus.COMPLETED) {
-      throw new Error("Completed sales cannot be cancelled");
-    }
-
-    if (this.status === SaleStatus.CANCELLED) {
-      throw new Error("Sale is already cancelled");
+      throw new Error("Completed sale cannot be cancelled");
     }
 
     this.status = SaleStatus.CANCELLED;
   }
 
-  // =========================
-  // BUSINESS HELPERS
-  // =========================
+  // =====================
+  // HELPERS
+  // =====================
 
-  isDraft(): boolean {
-    return this.status === SaleStatus.DRAFT;
+  isPaid(): boolean {
+    return this.status === SaleStatus.PAID;
   }
 
   isPending(): boolean {
     return this.status === SaleStatus.PENDING;
   }
 
-  isPaid(): boolean {
-    return this.status === SaleStatus.PAID;
-  }
-
-  isCompleted(): boolean {
-    return this.status === SaleStatus.COMPLETED;
-  }
-
   isCancelled(): boolean {
     return this.status === SaleStatus.CANCELLED;
-  }
-
-  belongsToBranch(branchId: string): boolean {
-    return this.branchId === branchId;
-  }
-
-  updateTotal(total: number) {
-    if (total < 0) {
-      throw new Error("Total cannot be negative");
-    }
-
-    if (this.status !== SaleStatus.DRAFT) {
-      throw new Error("Cannot update total after checkout started");
-    }
-
-    this.total = total;
   }
 }

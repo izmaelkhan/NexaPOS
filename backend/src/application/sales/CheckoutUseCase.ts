@@ -19,7 +19,8 @@ export class CheckoutUseCase {
     private readonly stockRepo: any,
     private readonly saleRepo: any,
     private readonly paymentRepo: any,
-    private readonly invoiceSequenceRepo: any
+    private readonly invoiceSequenceRepo: any,
+    private readonly customerRepo: any
   ) {}
 
   async execute(input: CheckoutInput) {
@@ -37,6 +38,22 @@ export class CheckoutUseCase {
 
       const total = cart.getTotal();
 
+      // =====================
+// CUSTOMER FETCH (REQUIRED FOR INVOICE)
+// =====================
+let customer = null;
+
+if (customerId) {
+  customer = await this.customerRepo.findById(customerId);
+
+  if (!customer) {
+    throw new Error("Customer not found");
+  }
+
+  if (customer.isBlocked()) {
+    throw new Error("Blocked customer cannot checkout");
+  }
+}
       // =====================
       // 2. STOCK VALIDATION
       // =====================
@@ -87,14 +104,25 @@ export class CheckoutUseCase {
       sale.markAsPaid();
 
       // =====================
-      // 5. INVOICE GENERATION
-      // =====================
-      const sequence =
-        await this.invoiceSequenceRepo.getNextSequence(branchId);
+// 5. INVOICE GENERATION
+// =====================
+const sequence = await this.invoiceSequenceRepo.getNextSequence(branchId);
 
-      const invoice = new Invoice({
-        sequence,
-      });
+const creditDue =
+  customerId && payment.amount < total ? total - payment.amount : 0;
+
+const loyaltyPoints =
+  customerId ? Math.floor(total * 0.01) : 0;
+
+const remainingBalance =
+  customer ? customer.creditBalance : 0;
+
+const invoice = new Invoice({
+  sequence,
+  creditDue,
+  loyaltyPoints,
+  remainingBalance,
+});
 
       // =====================
       // 6. STOCK MOVEMENTS
