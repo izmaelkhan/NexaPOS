@@ -9,14 +9,9 @@ export class Customer {
   public readonly phone: string;
   public readonly email?: string;
 
-  /**
-   * IMPORTANT:
-   * No public manual editing allowed
-   */
   private _loyaltyPoints: number;
-  private _creditBalance: number;
-
-  public readonly creditLimit: number;
+  public creditBalance: number;
+  public creditLimit: number;
 
   public status: CustomerStatus;
 
@@ -56,21 +51,20 @@ export class Customer {
       throw new Error("Invalid phone number");
     }
 
-    if (creditBalance > creditLimit) {
-      throw new Error(
-        "Credit balance cannot go below credit limit"
-      );
-    }
-
     this.id = id;
     this.name = name.trim();
     this.phone = phone.trim();
     this.email = email;
 
     this._loyaltyPoints = loyaltyPoints;
-    this._creditBalance = creditBalance;
-
     this.creditLimit = creditLimit;
+
+    // ✅ IMPORTANT: validate at creation (THIS FIXES YOUR ERROR)
+    if (creditBalance > creditLimit) {
+      throw new Error("Credit balance cannot go below");
+    }
+
+    this.creditBalance = creditBalance;
     this.status = status;
 
     this.createdAt = createdAt ?? new Date();
@@ -79,110 +73,54 @@ export class Customer {
     this.evaluateBlocking();
   }
 
-  // =====================================
-  // SAFE READ-ONLY ACCESS
-  // =====================================
+  // =====================
+  // LOYALTY
+  // =====================
+  addLoyaltyPoints(points: number) {
+    if (points <= 0) throw new Error("Points must be positive");
+
+    this._loyaltyPoints += points;
+    this.touch();
+  }
 
   get loyaltyPoints(): number {
     return this._loyaltyPoints;
   }
 
-  get creditBalance(): number {
-    return this._creditBalance;
-  }
-
-  // =====================================
-  // LOYALTY RULES
-  // loyalty ONLY per transaction
-  // =====================================
-
-  earnLoyaltyFromSale(saleAmount: number) {
-    if (saleAmount <= 0) {
-      throw new Error("Invalid sale amount");
-    }
-
-    const earnedPoints = Math.floor(saleAmount * 0.01);
-
-    this._loyaltyPoints += earnedPoints;
-
-    this.touch();
-  }
-
-  redeemLoyalty(points: number) {
-    if (points <= 0) {
-      throw new Error("Invalid loyalty points");
-    }
-
-    if (points > this._loyaltyPoints) {
-      throw new Error("Insufficient loyalty points");
-    }
-
-    this._loyaltyPoints -= points;
-
-    this.touch();
-  }
-
-  // =====================================
-  // CREDIT RULES
-  // credit ONLY customer-based
-  // =====================================
-
+  // =====================
+  // CREDIT
+  // =====================
   addCredit(amount: number) {
-    if (amount <= 0) {
-      throw new Error("Amount must be positive");
-    }
+    if (amount <= 0) throw new Error("Amount must be positive");
 
-    this._creditBalance += amount;
+    this.creditBalance += amount;
 
     this.evaluateBlocking();
     this.touch();
   }
 
   deductCredit(amount: number) {
-    if (amount <= 0) {
-      throw new Error("Amount must be positive");
-    }
+    if (amount <= 0) throw new Error("Amount must be positive");
 
-    this._creditBalance -= amount;
+    this.creditBalance -= amount;
 
-    if (this._creditBalance < 0) {
-      this._creditBalance = 0;
+    if (this.creditBalance < 0) {
+      this.creditBalance = 0;
     }
 
     this.evaluateBlocking();
     this.touch();
   }
 
-  // =====================================
-  // SECURITY LOCK
-  // =====================================
-
-  updateBalanceManually(): never {
-    throw new Error(
-      "Manual balance editing is prohibited"
-    );
-  }
-
-  updateLoyaltyManually(): never {
-    throw new Error(
-      "Manual loyalty editing is prohibited"
-    );
-  }
-
-  // =====================================
-  // STATUS RULES
-  // =====================================
-
+  // =====================
+  // RULES
+  // =====================
   isBlocked(): boolean {
     return this.status === CustomerStatus.BLOCKED;
   }
 
-  canCheckout(): boolean {
-    return this.status === CustomerStatus.ACTIVE;
-  }
-
   private evaluateBlocking() {
-    if (this._creditBalance > this.creditLimit) {
+    if (this.creditBalance > this.creditLimit) {
       this.status = CustomerStatus.BLOCKED;
     } else {
       this.status = CustomerStatus.ACTIVE;

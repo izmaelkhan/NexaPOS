@@ -27,6 +27,7 @@ export class CheckoutUseCase {
     const { cart, branchId, customerId, payment } = input;
 
     return await this.runTransaction(async () => {
+
       // =====================
       // 1. CART VALIDATION
       // =====================
@@ -36,26 +37,27 @@ export class CheckoutUseCase {
         throw new Error("Cart is empty");
       }
 
-      const total = cart.getTotal();
+      const subtotal = cart.getTotal();
 
       // =====================
-// CUSTOMER FETCH (REQUIRED FOR INVOICE)
-// =====================
-let customer = null;
-
-if (customerId) {
-  customer = await this.customerRepo.findById(customerId);
-
-  if (!customer) {
-    throw new Error("Customer not found");
-  }
-
-  if (customer.isBlocked()) {
-    throw new Error("Blocked customer cannot checkout");
-  }
-}
+      // 2. CUSTOMER VALIDATION
       // =====================
-      // 2. STOCK VALIDATION
+      let customer: any = null;
+
+      if (customerId) {
+        customer = await this.customerRepo.findById(customerId);
+
+        if (!customer) {
+          throw new Error("Customer not found");
+        }
+
+        if (customer.isBlocked()) {
+          throw new Error("Blocked customer cannot checkout");
+        }
+      }
+
+      // =====================
+      // 3. STOCK VALIDATION
       // =====================
       for (const item of items) {
         const stock = await this.stockRepo.getStock(
@@ -64,31 +66,33 @@ if (customerId) {
         );
 
         if (!stock || stock.stock < item.quantity) {
-          throw new Error(`Insufficient stock for ${item.productId}`);
+          throw new Error(
+            `Insufficient stock for ${item.productId}`
+          );
         }
       }
 
       // =====================
-      // 3. CREATE SALE
+      // 4. CREATE SALE
       // =====================
       const sale = new Sale({
         id: crypto.randomUUID(),
         branchId,
         customerId,
-        total,
+        total: subtotal,
         status: SaleStatus.PENDING,
       });
 
       await this.saleRepo.save(sale);
 
       // =====================
-      // 4. PAYMENT VALIDATION
+      // 5. PAYMENT VALIDATION
       // =====================
-      if (payment.amount < total) {
+      if (payment.amount < subtotal) {
         throw new Error("Payment insufficient");
       }
 
-      if (payment.amount > total) {
+      if (payment.amount > subtotal) {
         throw new Error("Payment exceeds total");
       }
 
@@ -104,28 +108,42 @@ if (customerId) {
       sale.markAsPaid();
 
       // =====================
-// 5. INVOICE GENERATION
-// =====================
-const sequence = await this.invoiceSequenceRepo.getNextSequence(branchId);
+      // 6. INVOICE SEQUENCE
+      // =====================
+      const sequence =
+        await this.invoiceSequenceRepo.getNextSequence(branchId);
 
-const creditDue =
-  customerId && payment.amount < total ? total - payment.amount : 0;
+      const creditDue =
+        customerId && payment.amount < subtotal
+          ? subtotal - payment.amount
+          : 0;
 
-const loyaltyPoints =
-  customerId ? Math.floor(total * 0.01) : 0;
+      const loyaltyPoints = customerId
+        ? Math.floor(subtotal * 0.01)
+        : 0;
 
-const remainingBalance =
-  customer ? customer.creditBalance : 0;
-
-const invoice = new Invoice({
-  sequence,
-  creditDue,
-  loyaltyPoints,
-  remainingBalance,
-});
+      const remainingBalance = customer
+        ? customer.creditBalance
+        : 0;
 
       // =====================
-      // 6. STOCK MOVEMENTS
+      // 7. INVOICE CREATION (FINAL STRUCTURE)
+      // =====================
+      const invoice = new Invoice({
+        sequence,
+
+        creditDue,
+        loyaltyPoints,
+        remainingBalance,
+
+        subtotal,
+        discount: 0,
+        finalTotal: subtotal,
+        couponCode: undefined,
+      });
+
+      // =====================
+      // 8. STOCK MOVEMENTS
       // =====================
       for (const item of items) {
         await this.stockRepo.createMovement({
@@ -138,29 +156,36 @@ const invoice = new Invoice({
       }
 
       // =====================
-      // 7. RETURN RESULT
+      // 9. RESPONSE
       // =====================
       return {
         sale,
         payment: paymentEntity,
+
         invoiceNumber: invoice.invoiceNumber,
-        total,
+
+        subtotal,
+        total: subtotal,
+
+        creditDue,
+        loyaltyPoints,
+        remainingBalance,
+
+        discount: 0,
+        couponCode: undefined,
       };
     });
   }
 
-  /**
-   * =========================
-   * SIMPLE TRANSACTION WRAPPER
-   * (replace with Prisma $transaction in infra layer)
-   * =========================
-   */
-  private async runTransaction<T>(fn: () => Promise<T>): Promise<T> {
+  // =========================
+  // TRANSACTION WRAPPER
+  // =========================
+  private async runTransaction<T>(
+    fn: () => Promise<T>
+  ): Promise<T> {
     try {
       return await fn();
     } catch (error) {
-      // IMPORTANT: here real infra would rollback DB transaction
-      // for now we just rethrow
       throw error;
     }
   }
