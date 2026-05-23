@@ -37,11 +37,7 @@ describe("Checkout Flow", () => {
     const cart = new Cart("cart-1");
 
     cart.addItem(
-      new CartItem({
-        productId: "p1",
-        price: 100,
-        quantity: 2,
-      })
+      new CartItem("p1", 100, 2)
     );
 
     const result = await useCase.execute({

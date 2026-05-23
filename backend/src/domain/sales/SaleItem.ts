@@ -1,31 +1,35 @@
 export class SaleItem {
   public readonly productId: string;
 
-  /**
-   * ORIGINAL PRICE SNAPSHOT (NEVER CHANGE)
-   */
+  // =====================
+  // SNAPSHOT FIELDS (IMMUTABLE)
+  // =====================
+  public readonly productName: string;
+  public readonly sku: string;
   public readonly unitPrice: number;
 
-  public readonly quantity: number;
+  // =====================
+  // QUANTITY
+  // =====================
+  public quantity: number;
 
-  /**
-   * DISCOUNT APPLIED ON THIS ITEM
-   */
+  // =====================
+  // DISCOUNT SNAPSHOT
+  // =====================
   public readonly discountAmount: number;
-
-  /**
-   * FINAL PRICE AFTER DISCOUNT
-   */
-  public readonly finalPrice: number;
 
   constructor(params: {
     productId: string;
+    productName: string;
+    sku: string;
     unitPrice: number;
     quantity: number;
     discountAmount?: number;
   }) {
     const {
       productId,
+      productName,
+      sku,
       unitPrice,
       quantity,
       discountAmount = 0,
@@ -34,9 +38,14 @@ export class SaleItem {
     // =====================
     // VALIDATION
     // =====================
+    if (!productId) throw new Error("ProductId required");
 
-    if (!productId) {
-      throw new Error("ProductId is required");
+    if (!productName || productName.trim().length === 0) {
+      throw new Error("Product name required");
+    }
+
+    if (!sku || sku.trim().length === 0) {
+      throw new Error("SKU required");
     }
 
     if (unitPrice <= 0) {
@@ -51,38 +60,44 @@ export class SaleItem {
       throw new Error("Discount cannot be negative");
     }
 
-    const maxAllowedDiscount = unitPrice * quantity;
+    const finalPrice = unitPrice - discountAmount;
 
-    if (discountAmount > maxAllowedDiscount) {
-      throw new Error("Discount exceeds item total value");
+    if (finalPrice < 0) {
+      throw new Error("Final price cannot be negative");
     }
 
     this.productId = productId;
-
-    // 🔒 SNAPSHOT (IMMUTABLE)
+    this.productName = productName;
+    this.sku = sku;
     this.unitPrice = unitPrice;
 
     this.quantity = quantity;
-
     this.discountAmount = discountAmount;
-
-    // =====================
-    // FINAL PRICE CALCULATION
-    // =====================
-    const total = unitPrice * quantity;
-
-    this.finalPrice = total - discountAmount;
   }
 
   // =====================
-  // TOTAL HELPERS
+  // QUANTITY UPDATE
   // =====================
+  increase(quantity: number) {
+    if (quantity <= 0) {
+      throw new Error("Invalid quantity");
+    }
 
-  getTotal(): number {
+    this.quantity += quantity;
+  }
+
+  // =====================
+  // SUBTOTAL (ORIGINAL)
+  // =====================
+  getSubtotal(): number {
     return this.unitPrice * this.quantity;
   }
 
-  getNetTotal(): number {
-    return this.finalPrice;
+  // =====================
+  // FINAL TOTAL (AFTER DISCOUNT)
+  // =====================
+  getTotal(): number {
+    const finalUnitPrice = this.unitPrice - this.discountAmount;
+    return finalUnitPrice * this.quantity;
   }
 }

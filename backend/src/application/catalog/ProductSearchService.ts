@@ -1,67 +1,99 @@
-import { prisma } from "../../infrastructure/database/prismaClient";
+type Product = {
+  id: string;
+  name: string;
+  sku: string;
+  barcode?: string;
+  price: number;
+};
 
 export class ProductSearchService {
-  /**
-   * FAST POS SEARCH (<50ms target)
-   * priority:
-   * 1. barcode exact
-   * 2. sku exact
-   * 3. name partial
-   */
+  private skuCache = new Map<string, Product>();
+  private barcodeCache = new Map<string, Product>();
+  private idCache = new Map<string, Product>();
 
-  async search(query: string) {
-    if (!query || query.trim().length === 0) {
-      return [];
+  constructor(
+    private readonly productRepo: {
+      findById(id: string): Promise<Product | null>;
+      findBySku(sku: string): Promise<Product | null>;
+      findByBarcode(barcode: string): Promise<Product | null>;
+    }
+  ) {}
+
+  // =====================
+  // MAIN FAST LOOKUP
+  // =====================
+  async find(query: {
+    id?: string;
+    sku?: string;
+    barcode?: string;
+  }): Promise<Product | null> {
+    const { id, sku, barcode } = query;
+
+    // =====================
+    // 1. CACHE HIT (FASTEST)
+    // =====================
+    if (id && this.idCache.has(id)) {
+      return this.idCache.get(id)!;
     }
 
-    const q = query.trim();
-
-    // =====================
-    // 1. EXACT MATCH (FASTEST)
-    // =====================
-    const exactMatch = await prisma.product.findFirst({
-      where: {
-        OR: [
-          { sku: q },
-          { barcode: q },
-        ],
-      },
-    });
-
-    if (exactMatch) {
-      return [exactMatch];
+    if (sku && this.skuCache.has(sku)) {
+      return this.skuCache.get(sku)!;
     }
 
-    // =====================
-    // 2. PREFIX SEARCH (FAST INDEXED)
-    // =====================
-    const prefixMatch = await prisma.product.findMany({
-      where: {
-        OR: [
-          { sku: { startsWith: q } },
-          { barcode: { startsWith: q } },
-        ],
-      },
-      take: 10,
-    });
-
-    if (prefixMatch.length > 0) {
-      return prefixMatch;
+    if (barcode && this.barcodeCache.has(barcode)) {
+      return this.barcodeCache.get(barcode)!;
     }
 
     // =====================
-    // 3. NAME SEARCH (FALLBACK)
+    // 2. DIRECT LOOKUP
     // =====================
-    const nameMatch = await prisma.product.findMany({
-      where: {
-        name: {
-          contains: q,
-          mode: "insensitive",
-        },
-      },
-      take: 20,
-    });
+    let product: Product | null = null;
 
-    return nameMatch;
+    if (id) {
+      product = await this.productRepo.findById(id);
+    } else if (sku) {
+      product = await this.productRepo.findBySku(sku);
+    } else if (barcode) {
+      product = await this.productRepo.findByBarcode(barcode);
+    }
+
+    if (!product) {
+      return null;
+    }
+
+    // =====================
+    // 3. CACHE STORE
+    // =====================
+    this.idCache.set(product.id, product);
+    this.skuCache.set(product.sku, product);
+
+    if (product.barcode) {
+      this.barcodeCache.set(product.barcode, product);
+    }
+
+    return product;
+  }
+
+  // =====================
+  // CACHE WARMUP (OPTIONAL)
+  // =====================
+  warmCache(products: Product[]) {
+    for (const p of products) {
+      this.idCache.set(p.id, p);
+      this.skuCache.set(p.sku, p);
+
+      if (p.barcode) {
+        this.barcodeCache.set(p.barcode, p);
+      }
+    }
+  }
+
+  // =====================
+  // CACHE CLEAR (FOR CONSISTENCY)
+  // =====================
+  clearCache() {
+    this.idCache.clear();
+    this.skuCache.clear();
+    this.barcodeCache.clear();
   }
 }

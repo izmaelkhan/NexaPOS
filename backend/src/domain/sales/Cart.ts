@@ -1,89 +1,122 @@
 import { CartItem } from "./CartItem";
+import { CartStatus } from "./CartStatus";
+import { EventLogger } from "../../shared/events/EventLogger";
+
+type AddItemInput = {
+  productId: string;
+  price: number;
+  quantity: number;
+};
 
 export class Cart {
   private items: CartItem[] = [];
+  private status: CartStatus = CartStatus.ACTIVE;
 
-  constructor(public readonly id: string) {
-    if (!id) {
-      throw new Error("CartId is required");
+  constructor(public readonly customerId: string) {
+  EventLogger.log({
+    type: "CART_CREATED",
+    timestamp: new Date(),
+    data: { customerId },
+  });
+}
+
+  // =====================
+  // ADD ITEM (MERGE LOGIC)
+  // =====================
+  addItem(input: AddItemInput) {
+    this.ensureActive();
+
+    if (input.quantity <= 0) {
+      throw new Error("Quantity must be greater than 0");
     }
-  }
 
-  /**
-   * =========================
-   * ADD ITEM
-   * =========================
-   */
-  addItem(item: CartItem) {
-    const existing = this.items.find(i => i.productId === item.productId);
+    const existing = this.items.find(
+      (i) => i.productId === input.productId
+    );
 
     if (existing) {
-      existing.updateQuantity(existing.quantity + item.quantity);
-      return;
+      existing.increase(input.quantity);
+    } else {
+      this.items.push(
+        new CartItem(
+          input.productId,
+          input.price,
+          input.quantity
+        )
+      );
+    }
+  }
+
+  // =====================
+  // REMOVE ITEM
+  // =====================
+  removeItem(productId: string) {
+    this.ensureActive();
+
+    this.items = this.items.filter(
+      (i) => i.productId !== productId
+    );
+  }
+
+  // =====================
+  // UPDATE QUANTITY
+  // =====================
+  updateQuantity(productId: string, quantity: number) {
+    this.ensureActive();
+
+    if (quantity <= 0) {
+      throw new Error("Quantity must be greater than 0");
     }
 
-    this.items.push(item);
-  }
-
-  /**
-   * =========================
-   * REMOVE ITEM
-   * =========================
-   */
-  removeItem(productId: string) {
-    this.items = this.items.filter(i => i.productId !== productId);
-  }
-
-  /**
-   * =========================
-   * UPDATE QUANTITY
-   * =========================
-   */
-  updateQuantity(productId: string, quantity: number) {
-    const item = this.items.find(i => i.productId === productId);
+    const item = this.items.find(
+      (i) => i.productId === productId
+    );
 
     if (!item) {
-      throw new Error("Item not found in cart");
+      throw new Error("Item not found");
     }
 
-    item.updateQuantity(quantity);
+    item.quantity = quantity;
   }
 
-  /**
-   * =========================
-   * GET ITEMS
-   * =========================
-   */
-  getItems(): CartItem[] {
+  // =====================
+  // TOTAL
+  // =====================
+  getTotal(): number {
+    return this.items.reduce(
+      (sum, item) => sum + item.getSubtotal(),
+      0
+    );
+  }
+
+  getItems(): readonly CartItem[] {
     return [...this.items];
   }
 
-  /**
-   * =========================
-   * TOTAL CALCULATION
-   * =========================
-   */
-  getTotal(): number {
-    return this.items.reduce((sum, item) => {
-      return sum + item.getTotal();
-    }, 0);
+  // =====================
+  // EMPTY CHECK
+  // =====================
+  isEmpty(): boolean {
+    return this.items.length === 0;
   }
 
-  /**
-   * =========================
-   * CLEAR CART
-   * =========================
-   */
-  clear() {
-    this.items = [];
+  // =====================
+  // LOCK SYSTEM
+  // =====================
+  lock() {
+    this.status = CartStatus.LOCKED;
   }
 
-  /**
-   * =========================
-   * ITEM COUNT
-   * =========================
-   */
-  getItemCount(): number {
-    return this.items.length;
+  isLocked(): boolean {
+    return this.status === CartStatus.LOCKED;
+  }
+
+  // =====================
+  // GUARD
+  // =====================
+  private ensureActive() {
+    if (this.isLocked()) {
+      throw new Error("Cart is locked");
+    }
   }
 }
