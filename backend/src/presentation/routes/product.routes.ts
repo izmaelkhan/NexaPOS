@@ -5,36 +5,43 @@ import { prisma } from "../../infrastructure/database/prismaClient";
 
 const router = express.Router();
 
-const productSearchService = new ProductSearchService();
-
 /**
- * =========================
- * SAFE QUERY HELPER
- * =========================
+ * Repository Adapter (Prisma → Domain)
  */
-function getQueryString(value: unknown): string {
-  if (Array.isArray(value)) return value[0] || "";
-  if (typeof value === "string") return value;
-  return "";
-}
+const productRepo = {
+  findById: (id: string) =>
+    prisma.product.findUnique({ where: { id } }),
+
+  findBySku: (sku: string) =>
+    prisma.product.findUnique({ where: { sku } }),
+
+  findByBarcode: (barcode: string) =>
+    prisma.product.findFirst({ where: { barcode } }),
+
+  search: (query: string) =>
+    prisma.product.findMany({
+      where: {
+        name: { contains: query },
+      },
+      take: 20,
+    }),
+};
 
 /**
- * =========================
- * SEARCH PRODUCTS (POS FAST)
- * /products/search?q=
- * =========================
+ * Service instance
+ */
+const productSearchService = new ProductSearchService(productRepo);
+
+/**
+ * SEARCH PRODUCTS
  */
 router.get(
   "/search",
   authMiddleware,
   async (req: Request, res: Response) => {
-    const q = Array.isArray(req.query.q)
-      ? req.query.q[0]
-      : req.query.q;
+    const q = String(req.query.q || "");
 
-    const query: string = String(q || "");
-
-    const result = await productSearchService.search(query);
+    const result = await productSearchService.search(q);
 
     return res.json({
       message: "Products found",
@@ -42,31 +49,22 @@ router.get(
     });
   }
 );
+
 /**
- * =========================
- * BARCODE / SKU SCAN
- * /products/barcode/:code
- * =========================
+ * BARCODE SEARCH
  */
 router.get(
   "/barcode/:code",
   authMiddleware,
   async (req: Request, res: Response) => {
-    const code: string = String(req.params.code || "");
+    const code = String(req.params.code);
 
-    const product = await prisma.product.findFirst({
-      where: {
-        OR: [
-          { barcode: code },
-          { sku: code },
-        ],
-      },
+    const product = await productSearchService.find({
+      barcode: code,
     });
 
     if (!product) {
-      return res.status(404).json({
-        message: "Product not found",
-      });
+      return res.status(404).json({ message: "Product not found" });
     }
 
     return res.json({
@@ -75,4 +73,5 @@ router.get(
     });
   }
 );
+
 export default router;

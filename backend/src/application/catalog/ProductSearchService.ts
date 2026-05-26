@@ -2,7 +2,7 @@ type Product = {
   id: string;
   name: string;
   sku: string;
-  barcode?: string;
+  barcode?: string | null;
   price: number;
 };
 
@@ -16,12 +16,10 @@ export class ProductSearchService {
       findById(id: string): Promise<Product | null>;
       findBySku(sku: string): Promise<Product | null>;
       findByBarcode(barcode: string): Promise<Product | null>;
+      search(query: string): Promise<Product[]>;
     }
   ) {}
 
-  // =====================
-  // MAIN FAST LOOKUP
-  // =====================
   async find(query: {
     id?: string;
     sku?: string;
@@ -29,9 +27,6 @@ export class ProductSearchService {
   }): Promise<Product | null> {
     const { id, sku, barcode } = query;
 
-    // =====================
-    // 1. CACHE HIT (FASTEST)
-    // =====================
     if (id && this.idCache.has(id)) {
       return this.idCache.get(id)!;
     }
@@ -44,9 +39,6 @@ export class ProductSearchService {
       return this.barcodeCache.get(barcode)!;
     }
 
-    // =====================
-    // 2. DIRECT LOOKUP
-    // =====================
     let product: Product | null = null;
 
     if (id) {
@@ -61,36 +53,34 @@ export class ProductSearchService {
       return null;
     }
 
-    // =====================
-    // 3. CACHE STORE
-    // =====================
+    this.cacheProduct(product);
+
+    return product;
+  }
+
+  async search(query: string): Promise<Product[]> {
+    if (!query || query.trim().length === 0) {
+      return [];
+    }
+
+    return this.productRepo.search(query);
+  }
+
+  private cacheProduct(product: Product) {
     this.idCache.set(product.id, product);
     this.skuCache.set(product.sku, product);
 
     if (product.barcode) {
       this.barcodeCache.set(product.barcode, product);
     }
-
-    return product;
   }
 
-  // =====================
-  // CACHE WARMUP (OPTIONAL)
-  // =====================
   warmCache(products: Product[]) {
     for (const p of products) {
-      this.idCache.set(p.id, p);
-      this.skuCache.set(p.sku, p);
-
-      if (p.barcode) {
-        this.barcodeCache.set(p.barcode, p);
-      }
+      this.cacheProduct(p);
     }
   }
 
-  // =====================
-  // CACHE CLEAR (FOR CONSISTENCY)
-  // =====================
   clearCache() {
     this.idCache.clear();
     this.skuCache.clear();

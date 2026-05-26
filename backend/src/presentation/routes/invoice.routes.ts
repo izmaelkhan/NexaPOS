@@ -1,12 +1,13 @@
 import express, { Request, Response } from "express";
-import { authMiddleware } from "../../src/presentation/middleware/authMiddleware";
-import { prisma } from "../../src/infrastructure/database/prismaClient";
+import { authMiddleware } from "../middleware/authMiddleware";
+import { prisma } from "../../infrastructure/database/prismaClient";
 
 const router = express.Router();
 
-/**
- * GET /invoice/:id
- */
+// =====================
+// GET INVOICE
+// =====================
+
 router.get(
   "/:id",
   authMiddleware,
@@ -15,11 +16,15 @@ router.get(
       const id = String(req.params.id);
 
       const sale = await prisma.sale.findUnique({
-        where: { id },
+        where: {
+          id,
+        },
       });
 
       if (!sale) {
-        return res.status(404).json({ message: "Invoice not found" });
+        return res.status(404).json({
+          message: "Invoice not found",
+        });
       }
 
       return res.json({

@@ -5,6 +5,12 @@ export enum PaymentType {
   CREDIT = "CREDIT",
 }
 
+export enum PaymentStatus {
+  PENDING = "PENDING",
+  COMPLETED = "COMPLETED",
+  FAILED = "FAILED",
+}
+
 export class Payment {
   public readonly id: string;
   public readonly saleId: string;
@@ -12,6 +18,8 @@ export class Payment {
 
   public readonly amount: number;
   public readonly paidAt: Date;
+
+  public status: PaymentStatus;
 
   constructor(params: {
     id: string;
@@ -22,21 +30,9 @@ export class Payment {
   }) {
     const { id, saleId, type, amount, paidAt = new Date() } = params;
 
-    // =====================
-    // Validation Rules
-    // =====================
-
-    if (!id) {
-      throw new Error("PaymentId is required");
-    }
-
-    if (!saleId) {
-      throw new Error("SaleId is required");
-    }
-
-    if (amount <= 0) {
-      throw new Error("Payment amount must be greater than 0");
-    }
+    if (!id) throw new Error("PaymentId is required");
+    if (!saleId) throw new Error("SaleId is required");
+    if (amount <= 0) throw new Error("Payment amount must be greater than 0");
 
     if (!Object.values(PaymentType).includes(type)) {
       throw new Error("Invalid payment type");
@@ -47,25 +43,23 @@ export class Payment {
     this.type = type;
     this.amount = amount;
     this.paidAt = paidAt;
+
+    this.status = PaymentStatus.PENDING;
   }
 
-  // =====================
-  // DOMAIN BEHAVIORS
-  // =====================
-
-  isCash(): boolean {
+  isCash() {
     return this.type === PaymentType.CASH;
   }
 
-  isCard(): boolean {
+  isCard() {
     return this.type === PaymentType.CARD;
   }
 
-  isSplit(): boolean {
+  isSplit() {
     return this.type === PaymentType.SPLIT;
   }
 
-  isCredit(): boolean {
+  isCredit() {
     return this.type === PaymentType.CREDIT;
   }
 }
