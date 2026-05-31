@@ -2,7 +2,7 @@ import express from "express";
 import { authMiddleware } from "../middleware/authMiddleware";
 import { CheckoutUseCase } from "../../application/sales/CheckoutUseCase";
 import { Cart } from "../../domain/sales/Cart";
-import { PaymentType } from "../../domain/payments/Payments";
+import { PaymentMethod } from "../../domain/payments/Payments";
 import { prisma } from "../../infrastructure/database/prismaClient";
 
 const router = express.Router();
@@ -79,7 +79,7 @@ router.post("/checkout", authMiddleware, async (req, res) => {
     branchId,
     customerId,
     payment: {
-      type: paymentType as PaymentType,
+      type: paymentType as PaymentMethod,
       amount,
     },
   });

@@ -1,122 +1,83 @@
-import { CartItem } from "./CartItem";
-import { CartStatus } from "./CartStatus";
-import { EventLogger } from "../../shared/events/EventLogger";
+import { FinancialPrecision } from "../../shared/finance/FinancialPrecision";
 
-type AddItemInput = {
+type CartItemSnapshot = {
   productId: string;
   price: number;
   quantity: number;
 };
 
 export class Cart {
-  private items: CartItem[] = [];
-  private status: CartStatus = CartStatus.ACTIVE;
+  private items: CartItemSnapshot[] = [];
+  private locked = false;
 
-  constructor(public readonly customerId: string) {
-  EventLogger.log({
-    type: "CART_CREATED",
-    timestamp: new Date(),
-    data: { customerId },
+  constructor(private readonly id: string) {}
+
+  addItem(item: CartItemSnapshot) {
+  if (this.locked) {
+    throw new Error("Cart is locked");
+  }
+
+  if (item.quantity <= 0) {
+    throw new Error("Quantity must be greater than 0");
+  }
+
+  const existing = this.items.find(
+    i => i.productId === item.productId
+  );
+
+  if (existing) {
+    existing.quantity += item.quantity;
+    return;
+  }
+
+  this.items.push({
+    ...item,
+    price: FinancialPrecision.normalize(item.price),
   });
 }
 
-  // =====================
-  // ADD ITEM (MERGE LOGIC)
-  // =====================
-  addItem(input: AddItemInput) {
-    this.ensureActive();
-
-    if (input.quantity <= 0) {
-      throw new Error("Quantity must be greater than 0");
-    }
-
-    const existing = this.items.find(
-      (i) => i.productId === input.productId
-    );
-
-    if (existing) {
-      existing.increase(input.quantity);
-    } else {
-      this.items.push(
-        new CartItem(
-          input.productId,
-          input.price,
-          input.quantity
-        )
-      );
-    }
+  getItems(): readonly CartItemSnapshot[] {
+    return this.items;
   }
 
-  // =====================
-  // REMOVE ITEM
-  // =====================
-  removeItem(productId: string) {
-    this.ensureActive();
-
-    this.items = this.items.filter(
-      (i) => i.productId !== productId
-    );
-  }
-
-  // =====================
-  // UPDATE QUANTITY
-  // =====================
-  updateQuantity(productId: string, quantity: number) {
-    this.ensureActive();
-
-    if (quantity <= 0) {
-      throw new Error("Quantity must be greater than 0");
-    }
-
-    const item = this.items.find(
-      (i) => i.productId === productId
-    );
-
-    if (!item) {
-      throw new Error("Item not found");
-    }
-
-    item.quantity = quantity;
-  }
-
-  // =====================
-  // TOTAL
-  // =====================
   getTotal(): number {
-    return this.items.reduce(
-      (sum, item) => sum + item.getSubtotal(),
-      0
-    );
+    return this.items.reduce((sum, item) => {
+      const lineTotal =
+        item.price * item.quantity;
+
+      return FinancialPrecision.add(
+        sum,
+        lineTotal
+      );
+    }, 0);
   }
 
-  getItems(): readonly CartItem[] {
-    return [...this.items];
+  lock() {
+    this.locked = true;
   }
 
-  // =====================
-  // EMPTY CHECK
-  // =====================
   isEmpty(): boolean {
     return this.items.length === 0;
   }
+  removeItem(productId: string) {
+  this.items = this.items.filter(
+    item => item.productId !== productId
+  );
+}
 
-  // =====================
-  // LOCK SYSTEM
-  // =====================
-  lock() {
-    this.status = CartStatus.LOCKED;
+updateQuantity(productId: string, quantity: number) {
+  if (quantity <= 0) {
+    throw new Error("Quantity must be greater than 0");
   }
 
-  isLocked(): boolean {
-    return this.status === CartStatus.LOCKED;
+  const item = this.items.find(
+    i => i.productId === productId
+  );
+
+  if (!item) {
+    throw new Error("Item not found");
   }
 
-  // =====================
-  // GUARD
-  // =====================
-  private ensureActive() {
-    if (this.isLocked()) {
-      throw new Error("Cart is locked");
-    }
-  }
+  item.quantity = quantity;
+}
 }

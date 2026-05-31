@@ -1,65 +1,70 @@
-export enum PaymentType {
+import { PaymentState } from "./PaymentState";
+
+export enum PaymentMethod {
   CASH = "CASH",
   CARD = "CARD",
-  SPLIT = "SPLIT",
   CREDIT = "CREDIT",
+  SPLIT = "SPLIT",
 }
 
-export enum PaymentStatus {
-  PENDING = "PENDING",
-  COMPLETED = "COMPLETED",
-  FAILED = "FAILED",
-}
+// ✅ FIX for your error
+export type PaymentType = PaymentMethod;
+
+type PaymentProps = {
+  paymentId: string;
+  saleId: string;
+  amount: number;
+  method: PaymentMethod;
+  state?: PaymentState;
+};
 
 export class Payment {
-  public readonly id: string;
-  public readonly saleId: string;
-  public readonly type: PaymentType;
+  private props: PaymentProps;
 
-  public readonly amount: number;
-  public readonly paidAt: Date;
-
-  public status: PaymentStatus;
-
-  constructor(params: {
-    id: string;
-    saleId: string;
-    type: PaymentType;
-    amount: number;
-    paidAt?: Date;
-  }) {
-    const { id, saleId, type, amount, paidAt = new Date() } = params;
-
-    if (!id) throw new Error("PaymentId is required");
-    if (!saleId) throw new Error("SaleId is required");
-    if (amount <= 0) throw new Error("Payment amount must be greater than 0");
-
-    if (!Object.values(PaymentType).includes(type)) {
-      throw new Error("Invalid payment type");
+  constructor(props: PaymentProps) {
+    if (props.amount < 0) {
+      throw new Error("Payment cannot be negative");
     }
 
-    this.id = id;
-    this.saleId = saleId;
-    this.type = type;
-    this.amount = amount;
-    this.paidAt = paidAt;
-
-    this.status = PaymentStatus.PENDING;
+    this.props = {
+      ...props,
+      state: props.state ?? PaymentState.CREATED,
+    };
   }
 
-  isCash() {
-    return this.type === PaymentType.CASH;
+  get paymentId() {
+    return this.props.paymentId;
   }
 
-  isCard() {
-    return this.type === PaymentType.CARD;
+  get saleId() {
+    return this.props.saleId;
   }
 
-  isSplit() {
-    return this.type === PaymentType.SPLIT;
+  get amount() {
+    return this.props.amount;
   }
 
-  isCredit() {
-    return this.type === PaymentType.CREDIT;
+  get method() {
+    return this.props.method;
+  }
+
+  get state() {
+    return this.props.state;
+  }
+
+  start() {
+    this.props.state = PaymentState.PENDING;
+  }
+
+  complete() {
+    this.props.state = PaymentState.COMPLETED;
+  }
+
+  fail() {
+    this.props.state = PaymentState.FAILED;
+  }
+
+  refund() {
+    this.props.state = PaymentState.REFUNDED;
   }
 }

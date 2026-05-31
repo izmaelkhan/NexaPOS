@@ -11,32 +11,28 @@ router.get(
   "/:id",
   authMiddleware,
   async (req: Request, res: Response) => {
-    try {
-      const id = String(req.params.id);
+    const id = String(req.params.id);
 
-      const sale = await prisma.sale.findUnique({
-        where: { id },
-      });
+    const sale = await prisma.sale.findUnique({
+      where: { id },
+    });
 
-      if (!sale) {
-        return res.status(404).json({ message: "Invoice not found" });
-      }
-
-      return res.json({
-        message: "Invoice fetched successfully",
-        data: {
-          invoiceId: sale.id,
-          branchId: sale.branchId,
-          customerId: sale.customerId,
-          total: sale.totalAmount,
-          createdAt: sale.createdAt,
-        },
-      });
-    } catch (error: any) {
-      return res.status(500).json({
-        message: error.message,
+    if (!sale) {
+      return res.status(404).json({
+        message: "Invoice not found",
       });
     }
+
+    return res.json({
+      message: "Invoice fetched successfully",
+      data: {
+        invoiceId: sale.id,
+        branchId: sale.branchId,
+        customerId: sale.customerId,
+        total: sale.totalAmount, // ✅ FIXED (consistent with domain)
+        createdAt: sale.createdAt,
+      },
+    });
   }
 );
 

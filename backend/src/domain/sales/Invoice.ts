@@ -1,74 +1,57 @@
-export type InvoiceItemSnapshot = {
-  productId: string;
-  productName: string;
-  sku: string;
-
-  unitPrice: number;
-  quantity: number;
-
-  discount: number;
-  finalPrice: number;
-};
-
-export type CustomerSnapshot = {
-  customerId: string;
-  name: string;
-  phone?: string;
-  type?: string;
-};
-
-export type PricingSnapshot = {
-  subtotal: number;
-  tax: number;
-  discount: number;
-  grandTotal: number;
-};
+import { FinancialPrecision } from "../../shared/finance/FinancialPrecision";
 
 export class Invoice {
   public readonly invoiceNumber: string;
   public readonly saleId: string;
   public readonly branchId: string;
-  public readonly issuedAt: Date;
 
-  public readonly items: ReadonlyArray<InvoiceItemSnapshot>;
-  public readonly customer?: Readonly<CustomerSnapshot>;
-  public readonly pricing: Readonly<PricingSnapshot>;
+  public readonly items: readonly any[];
+  public readonly pricing: {
+    subtotal: number;
+    tax: number;
+    discount: number;
+    grandTotal: number;
+  };
 
-  constructor(params: {
+  public readonly customer?: any;
+
+  constructor(props: {
     invoiceNumber: string;
     saleId: string;
     branchId: string;
-    items: InvoiceItemSnapshot[];
-    pricing: PricingSnapshot;
-    customer?: CustomerSnapshot;
-    issuedAt?: Date;
+    items: any[];
+    pricing: any;
+    customer?: any;
   }) {
-    const {
-      invoiceNumber,
-      saleId,
-      branchId,
-      items,
-      pricing,
-      customer,
-      issuedAt = new Date(),
-    } = params;
+    this.invoiceNumber = props.invoiceNumber;
+    this.saleId = props.saleId;
+    this.branchId = props.branchId;
 
-    if (!invoiceNumber) throw new Error("Invoice number required");
-    if (!saleId) throw new Error("Sale ID required");
-    if (!branchId) throw new Error("Branch ID required");
+    // IMMUTABLE SNAPSHOT
+    this.items = Object.freeze(
+      props.items.map((i) => Object.freeze({ ...i }))
+    );
 
-    this.invoiceNumber = invoiceNumber;
-    this.saleId = saleId;
-    this.branchId = branchId;
-    this.issuedAt = issuedAt;
+    this.pricing = Object.freeze({
+      subtotal: FinancialPrecision.normalize(
+        props.pricing.subtotal
+      ),
+      tax: FinancialPrecision.normalize(
+        props.pricing.tax
+      ),
+      discount: FinancialPrecision.normalize(
+        props.pricing.discount
+      ),
+      grandTotal: FinancialPrecision.normalize(
+        props.pricing.grandTotal
+      ),
+    });
 
-    this.items = Object.freeze([...items]);
-    this.pricing = Object.freeze({ ...pricing });
-
-    if (customer) {
-      this.customer = Object.freeze({ ...customer });
+    this.customer = props.customer
+      ? Object.freeze({ ...props.customer })
+      : undefined;
+  // IMPORTANT
+  Object.freeze(this);
     }
-
-    Object.freeze(this);
-  }
+  
 }

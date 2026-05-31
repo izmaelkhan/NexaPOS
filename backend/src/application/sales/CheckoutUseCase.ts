@@ -1,17 +1,18 @@
 import { Cart } from "../../domain/sales/Cart";
 import { Sale, SaleStatus } from "../../domain/sales/Sale";
-import { Payment, PaymentType } from "../../domain/payments/Payments";
+import { Payment, PaymentMethod } from "../../domain/payments/Payments";
 import { StockMovementType } from "../../domain/inventory/StockMovement";
 import { EventLogger } from "../../shared/events/EventLogger";
 import { AuditLogger } from "../../shared/audit/AuditLogger";
 import { AuditEventType } from "../../shared/audit/AuditEventType";
+import { FinancialPrecision } from "../../shared/finance/FinancialPrecision";
 
 type CheckoutInput = {
   cart: Cart;
   branchId: string;
   customerId?: string;
   payment: {
-    type: PaymentType;
+    type: PaymentMethod;
     amount: number;
   };
 };
@@ -30,33 +31,28 @@ export class CheckoutUseCase {
   async execute(input: CheckoutInput) {
     const { cart, branchId, customerId, payment } = input;
 
-    EventLogger.log({
-      type: "CHECKOUT_STARTED",
-      timestamp: new Date(),
-      data: { customerId, branchId },
-    });
-
     const items = cart.getItems();
 
-    if (items.length === 0) {
+    if (!items.length) {
       throw new Error("Cart is empty");
     }
 
-    const total = cart.getTotal();
+    // =========================
+    // PARALLEL STOCK CHECK (FAST)
+    // =========================
+    const stockResults = await Promise.all(
+      items.map((item) =>
+        this.stockRepo.getStock(item.productId, branchId)
+      )
+    );
 
-    let customer = null;
-
-    if (customerId) {
-      customer = await this.customerRepo.findById(customerId);
-    }
-
-    for (const item of items) {
-      const stock = await this.stockRepo.getStock(item.productId, branchId);
-
-      if (!stock || stock.stock < item.quantity) {
-        throw new Error("Insufficient stock");
+    stockResults.forEach((stock, i) => {
+      if (!stock || stock.stock < items[i].quantity) {
+        throw new Error(`Insufficient stock for ${items[i].productId}`);
       }
-    }
+    });
+
+    const total = FinancialPrecision.normalize(cart.getTotal());
 
     const sale = new Sale({
       id: crypto.randomUUID(),
@@ -69,42 +65,86 @@ export class CheckoutUseCase {
     await this.saleRepo.save(sale);
 
     const paymentEntity = new Payment({
-      id: crypto.randomUUID(),
+      paymentId: crypto.randomUUID(),
       saleId: sale.id,
-      type: payment.type,
-      amount: payment.amount,
+      method: payment.type,
+      amount: FinancialPrecision.normalize(payment.amount),
     });
 
-    await this.paymentRepo.save(paymentEntity);
+    paymentEntity.start();
+
+    let customer = null;
+
+    if (customerId) {
+      customer = await this.customerRepo.findById(customerId);
+    }
+
+    // =========================
+    // CREDIT HANDLING (NON-BLOCKING READY)
+    // =========================
+    const paymentTasks: Promise<any>[] = [];
+
+    if (payment.type === PaymentMethod.CREDIT) {
+      if (!customer) {
+        throw new Error("Customer required for CREDIT payment");
+      }
+
+      paymentTasks.push(
+        this.customerRepo.addBalance(customer.id, payment.amount),
+        this.customerRepo.createReceivable({
+          customerId: customer.id,
+          saleId: sale.id,
+          amount: payment.amount,
+          createdAt: new Date(),
+        })
+      );
+    } else {
+      paymentEntity.complete();
+    }
+
+    paymentTasks.push(this.paymentRepo.save(paymentEntity));
+
+    await Promise.all(paymentTasks);
 
     sale.markAsPaid();
 
     const invoiceNumber = await this.invoiceNumberGenerator.generate(branchId);
 
-    for (const item of items) {
-      await this.stockRepo.createMovement({
-        id: crypto.randomUUID(),
-        productId: item.productId,
-        branchId,
-        type: StockMovementType.SALE_OUT,
-        quantity: item.quantity,
+    // =========================
+    // PARALLEL STOCK MOVEMENTS (CRITICAL FIX)
+    // =========================
+    await Promise.all(
+      items.map((item) =>
+        this.stockRepo.createMovement({
+          id: crypto.randomUUID(),
+          productId: item.productId,
+          branchId,
+          type: StockMovementType.SALE_OUT,
+          quantity: item.quantity,
+        })
+      )
+    );
+
+    // =========================
+    // FIRE AND FORGET LOGGING (NO BLOCKING)
+    // =========================
+    setImmediate(() => {
+      AuditLogger.log({
+        type: AuditEventType.INVOICE_GENERATED,
+        timestamp: new Date(),
+        data: {
+          invoiceNumber,
+          saleId: sale.id,
+          branchId,
+          total,
+        },
       });
-    }
 
-    AuditLogger.log({
-  type: AuditEventType.INVOICE_GENERATED,
-  timestamp: new Date(),
-  data: {
-    invoiceNumber,
-    saleId: sale.id,
-    branchId,
-  },
-});
-
-    EventLogger.log({
-      type: "CHECKOUT_COMPLETED",
-      timestamp: new Date(),
-      data: { saleId: sale.id, invoiceNumber, total },
+      EventLogger.log({
+        type: "CHECKOUT_COMPLETED",
+        timestamp: new Date(),
+        data: { saleId: sale.id, invoiceNumber, total },
+      });
     });
 
     return {
