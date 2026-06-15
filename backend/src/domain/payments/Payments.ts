@@ -5,6 +5,8 @@ export enum PaymentMethod {
   CARD = "CARD",
   CREDIT = "CREDIT",
   SPLIT = "SPLIT",
+  // Refund methods
+  STORE_CREDIT = "STORE_CREDIT",
 }
 
 // ✅ FIX for your error

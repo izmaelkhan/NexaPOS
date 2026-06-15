@@ -71,9 +71,9 @@ export class ReceiptGenerator {
       },
 
       payment: {
-        method: payment.type,
+        method: payment.method,
         paidAmount: payment.amount,
-        status: payment.status,
+        status: payment.state,
       },
 
       footer: {
@@ -168,8 +168,8 @@ export class ReceiptGenerator {
     lines.push(`TOTAL: ${grandTotal}`);
     lines.push("------------------------");
 
-    lines.push(`Payment: ${payment.type}`);
-    lines.push(`Status: ${payment.status}`);
+    lines.push(`Payment: ${payment.method}`);
+    lines.push(`Status: ${payment.state}`);
     lines.push("------------------------");
 
     lines.push("   THANK YOU VISIT AGAIN   ");

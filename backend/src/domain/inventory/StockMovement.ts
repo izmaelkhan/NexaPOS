@@ -21,61 +21,77 @@ export class StockMovement {
     quantity: number;
     createdAt?: Date;
   }) {
-    const { id, productId, branchId, type, quantity, createdAt = new Date() } = params;
-
-    // =====================
-    // Business Rules
-    // =====================
-
-    if (!productId) {
+    if (!params.productId) {
       throw new Error("ProductId is required");
     }
 
-    if (!branchId) {
+    if (!params.branchId) {
       throw new Error("BranchId is required");
     }
 
-    if (quantity <= 0) {
-      throw new Error("Quantity must be greater than 0");
+    if (params.quantity <= 0) {
+      throw new Error(
+        "Quantity must be greater than 0"
+      );
     }
 
-    this.id = id;
-    this.productId = productId;
-    this.branchId = branchId;
-    this.type = type;
-    this.quantity = quantity;
-    this.createdAt = createdAt;
+    this.id = params.id;
+    this.productId = params.productId;
+    this.branchId = params.branchId;
+    this.type = params.type;
+    this.quantity = params.quantity;
+    this.createdAt =
+      params.createdAt ?? new Date();
   }
 
-  // =====================
-  // Domain Logic
-  // =====================
+
+  // =========================
+  // STOCK DIRECTION
+  // =========================
 
   isInMovement(): boolean {
-  return (
-    this.type === StockMovementType.PURCHASE_IN ||
-    this.type === StockMovementType.RETURN_IN
-  );
-}
+    return (
+      this.type === StockMovementType.PURCHASE_IN ||
+      this.type === StockMovementType.RETURN_IN
+    );
+  }
 
-isOutMovement(): boolean {
-  return this.type === StockMovementType.SALE_OUT;
-}
+
+  isOutMovement(): boolean {
+    return (
+      this.type === StockMovementType.SALE_OUT
+    );
+  }
+
 
   getSignedQuantity(): number {
-    // IN/RETURN => + stock
-    // OUT/SALE => - stock
-    return this.isInMovement() ? this.quantity : -this.quantity;
+    return this.isInMovement()
+      ? this.quantity
+      : -this.quantity;
   }
 
-  belongsToBranch(branchId: string): boolean {
+
+  // =========================
+  // HELPERS
+  // =========================
+
+  isReturn(): boolean {
+    return (
+      this.type === StockMovementType.RETURN_IN
+    );
+  }
+
+
+  isSale(): boolean {
+    return (
+      this.type === StockMovementType.SALE_OUT
+    );
+  }
+
+
+  belongsToBranch(
+    branchId: string
+  ): boolean {
     return this.branchId === branchId;
   }
-  isSale(): boolean {
-  return this.type === StockMovementType.SALE_OUT;
-}
-
-isReturn(): boolean {
-  return this.type === StockMovementType.RETURN_IN;
-}
 }

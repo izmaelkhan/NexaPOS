@@ -1,74 +1,190 @@
-export type StockMovementType = "IN" | "OUT" | "ADJUST";
+import {
+  StockMovement,
+  StockMovementType,
+} from "./StockMovement";
 
-export class StockMovement {
-  constructor(
-    public readonly type: StockMovementType,
-    public readonly quantity: number,
-    public readonly reason?: string,
-    public readonly createdAt: Date = new Date()
-  ) {
-    if (quantity <= 0) {
-      throw new Error("Stock movement quantity must be greater than 0");
-    }
-  }
-}
 
 export class Stock {
+
   public readonly productId: string;
+
   private _quantity: number;
 
   public readonly movements: StockMovement[] = [];
 
-  constructor(productId: string, initialQuantity: number = 0) {
+
+  constructor(
+    productId: string,
+    initialQuantity: number = 0
+  ) {
+
     if (initialQuantity < 0) {
-      throw new Error("Stock cannot start with negative value");
+      throw new Error(
+        "Stock cannot start with negative value"
+      );
     }
 
     this.productId = productId;
     this._quantity = initialQuantity;
   }
 
+
   get quantity(): number {
     return this._quantity;
   }
 
+
   // =========================
-  // Core Business Rule:
-  // Stock never goes negative
+  // STOCK IN
+  // Purchase / Return
   // =========================
 
-  addStock(quantity: number, reason?: string) {
-    const movement = new StockMovement("IN", quantity, reason);
+  addStock(
+    quantity: number,
+    reason?: string
+  ) {
+
+    if (quantity <= 0) {
+      throw new Error(
+        "Quantity must be greater than 0"
+      );
+    }
+
 
     this._quantity += quantity;
-    this.movements.push(movement);
+
+
+    this.movements.push({
+
+      type:
+        StockMovementType.PURCHASE_IN,
+
+      quantity,
+
+      reason,
+
+      createdAt:
+        new Date()
+
+    } as any);
   }
 
-  removeStock(quantity: number, reason?: string) {
+
+
+  // =========================
+  // RETURN STOCK
+  // =========================
+
+  restoreStock(
+    quantity: number,
+    reason?: string
+  ) {
+
     if (quantity <= 0) {
-      throw new Error("Quantity must be greater than 0");
+      throw new Error(
+        "Quantity must be greater than 0"
+      );
     }
 
-    if (this._quantity - quantity < 0) {
-      throw new Error("Stock cannot go negative");
+
+    this._quantity += quantity;
+
+
+    this.movements.push({
+
+      type:
+        StockMovementType.RETURN_IN,
+
+      quantity,
+
+      reason,
+
+      createdAt:
+        new Date()
+
+    } as any);
+  }
+
+
+
+  // =========================
+  // STOCK OUT
+  // Sale
+  // =========================
+
+  removeStock(
+    quantity: number,
+    reason?: string
+  ) {
+
+    if (quantity <= 0) {
+      throw new Error(
+        "Quantity must be greater than 0"
+      );
     }
 
-    const movement = new StockMovement("OUT", quantity, reason);
+
+    if (
+      this._quantity - quantity < 0
+    ) {
+      throw new Error(
+        "Stock cannot go negative"
+      );
+    }
+
 
     this._quantity -= quantity;
-    this.movements.push(movement);
+
+
+    this.movements.push({
+
+      type:
+        StockMovementType.SALE_OUT,
+
+      quantity,
+
+      reason,
+
+      createdAt:
+        new Date()
+
+    } as any);
   }
 
-  adjustStock(newQuantity: number, reason?: string) {
+
+
+  // =========================
+  // MANUAL ADJUSTMENT
+  // =========================
+
+  adjustStock(
+    newQuantity: number,
+    reason?: string
+  ) {
+
     if (newQuantity < 0) {
-      throw new Error("Stock cannot be negative");
+      throw new Error(
+        "Stock cannot be negative"
+      );
     }
 
-    const diff = newQuantity - this._quantity;
-
-    const movement = new StockMovement("ADJUST", diff, reason);
 
     this._quantity = newQuantity;
-    this.movements.push(movement);
+
+
+    this.movements.push({
+
+      type:
+        StockMovementType.ADJUSTMENT,
+
+      quantity:
+        newQuantity,
+
+      reason,
+
+      createdAt:
+        new Date()
+
+    } as any);
   }
 }

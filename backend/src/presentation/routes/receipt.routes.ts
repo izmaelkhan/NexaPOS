@@ -38,7 +38,7 @@ router.get(
           id: sale.id,
           branchId: sale.branchId,
           customerId: sale.customerId ?? undefined,
-          total: sale.total,
+          total: sale.totalAmount,
           status: sale.status,
           items: [], // safe fallback (replace later if needed)
         } as any,
