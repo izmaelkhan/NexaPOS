@@ -130,21 +130,25 @@ export class CheckoutUseCase {
     // =========================
     setImmediate(() => {
       AuditLogger.log({
-        type: AuditEventType.INVOICE_GENERATED,
-        timestamp: new Date(),
-        data: {
-          invoiceNumber,
-          saleId: sale.id,
-          branchId,
-          total,
-        },
-      });
+ type: AuditEventType.INVOICE_GENERATED,
+ timestamp:new Date(),
+ data:{
+   invoiceNumber,
+   saleId:sale.id,
+   branchId:sale.branchId,
+   total:sale.total
+ }
+});
 
       EventLogger.log({
-        type: "CHECKOUT_COMPLETED",
-        timestamp: new Date(),
-        data: { saleId: sale.id, invoiceNumber, total },
-      });
+ type:"CHECKOUT_COMPLETED",
+ timestamp:new Date(),
+ data:{
+   saleId:sale.id,
+   invoiceNumber,
+   total:sale.total
+ }
+});
     });
 
     return {

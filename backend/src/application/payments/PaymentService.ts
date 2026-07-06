@@ -4,7 +4,9 @@ import { Sale, SaleStatus } from "../../domain/sales/Sale";
 export class PaymentService {
   constructor(
     private readonly paymentRepo: any,
-    private readonly saleRepo: any
+    private readonly saleRepo: any,
+    private readonly auditLogger?: {
+      log(data:any):void;}
   ) {}
 
   /**

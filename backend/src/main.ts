@@ -7,7 +7,7 @@ import inventoryRouter from "./presentation/routes/inventory.routes";
 import storeRouter from "./presentation/routes/store.routes";
 import branchRouter from "./presentation/routes/branch.routes";
 import branchSwitchRouter from "./presentation/routes/branchSwitch.routes";
-
+import shiftRoutes from "./presentation/routes/shiftRoutes";
 config();
 
 const app = express();
@@ -31,6 +31,7 @@ app.use("/inventory", inventoryRouter);
 app.use("/stores", storeRouter);
 app.use("/branches", branchRouter);
 app.use("/branch-switch", branchSwitchRouter);
+app.use("/shifts",shiftRoutes);
 
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);

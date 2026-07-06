@@ -12,6 +12,12 @@ export class Sale {
   public readonly branchId: string;
   public readonly customerId?: string;
 
+  // =========================
+  // SHIFT INTEGRATION (NEW)
+  // =========================
+  public readonly shiftId?: string;
+  public readonly cashierId?: string;
+
   public total: number;
   public status: SaleStatus;
 
@@ -28,6 +34,11 @@ export class Sale {
     id: string;
     branchId: string;
     customerId?: string;
+
+    // NEW FIELDS
+    shiftId?: string;
+    cashierId?: string;
+
     total: number;
     status?: SaleStatus;
     items?: { productId: string; quantity: number }[];
@@ -36,6 +47,8 @@ export class Sale {
       id,
       branchId,
       customerId,
+      shiftId,
+      cashierId,
       total,
       status = SaleStatus.DRAFT,
       items = [],
@@ -48,9 +61,25 @@ export class Sale {
     this.branchId = branchId;
     this.customerId = customerId;
 
+    // SHIFT LINK
+    this.shiftId = shiftId;
+    this.cashierId = cashierId;
+
     this.total = total;
     this.status = status;
     this.items = items;
+  }
+
+  // =========================
+  // SHIFT RULE CHECK
+  // =========================
+
+  static validateCashSaleShift(shiftId?: string) {
+    if (!shiftId) {
+      throw new Error(
+        "Cash sale requires an active shift"
+      );
+    }
   }
 
   // =====================
@@ -94,7 +123,7 @@ export class Sale {
   }
 
   // =====================
-  // STATUS: COMPLETED (IMMUTABLE)
+  // STATUS: COMPLETED
   // =====================
   complete(invoiceNumber: string) {
     if (this.status === SaleStatus.CANCELLED) {
@@ -112,7 +141,6 @@ export class Sale {
     this.status = SaleStatus.COMPLETED;
     this.invoiceNumber = invoiceNumber;
 
-    // IMMUTABLE LOCK
     Object.freeze(this);
   }
 

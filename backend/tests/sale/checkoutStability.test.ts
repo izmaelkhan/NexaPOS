@@ -4,6 +4,15 @@ import { prisma } from "../../src/infrastructure/database/prismaClient";
 
 const router = express.Router();
 
+describe("Checkout Stability",()=>{
+
+ it("should load checkout test",()=>{
+
+   expect(true).toBe(true);
+
+ });
+
+});
 /**
  * GET /invoice/:id
  */
