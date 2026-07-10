@@ -1,70 +1,110 @@
-import { ExpenseType } from "../../domain/expenses/ExpenseType";
+import crypto from "crypto";
+
 import { Expense } from "../../domain/expenses/Expense";
+import { AuditEventType } from "../../shared/audit/AuditEventType";
+import { CashDrawerService } from "../shifts/CashDrawerService";
+
+type CreateExpenseInput = {
+  branchId: string;
+  shiftId: string;
+  categoryId: string;
+  amount: number;
+  description: string;
+  createdBy: string;
+};
 
 export class CreateExpenseUseCase {
   constructor(
-    private readonly expenseRepo: {
-      save(expense: Expense): Promise<void>;
-    },
+  private readonly expenseRepository: {
+    save(expense: Expense): Promise<void>;
+  },
 
-    private readonly shiftRepo: {
-      addExpenseToShift(
-        shiftId: string,
-        amount: number
-      ): Promise<void>;
-    },
+  private readonly cashDrawerService: CashDrawerService,
 
-    private readonly cashDrawerService: {
-      removeCash(amount: number, reason?: string): Promise<void>;
+  private readonly auditLogger?: {
+    log(event: any): void;
+  }
+) {}
+
+  async execute(input: CreateExpenseInput) {
+    // =====================================
+    // VALIDATION
+    // =====================================
+
+    if (!input.branchId) {
+      throw new Error("Branch is required");
     }
-  ) {}
 
-  async execute(input: {
-    id: string;
-    branchId: string;
-    shiftId: string;
-    amount: number;
-    type: ExpenseType;
-    reason: string;
-  }) {
-    // =========================
+    if (!input.shiftId) {
+      throw new Error("Shift is required");
+    }
+
+    if (!input.categoryId) {
+      throw new Error("Category is required");
+    }
+
+    if (!input.createdBy) {
+      throw new Error("CreatedBy is required");
+    }
+
+    if (input.amount <= 0) {
+      throw new Error("Expense amount must be greater than zero");
+    }
+
+    // =====================================
     // CREATE EXPENSE
-    // =========================
-    const expense = new Expense(
-      input.id,
-      input.branchId,
-      input.shiftId,
-      input.amount,
-      input.type,
-      input.reason
-    );
+    // =====================================
 
-    // =========================
-    // SHIFT RECORD
-    // =========================
-    await this.shiftRepo.addExpenseToShift(
-      input.shiftId,
-      input.amount
-    );
+    const expense = new Expense({
+      id: crypto.randomUUID(),
+      branchId: input.branchId,
+      shiftId: input.shiftId,
+      categoryId: input.categoryId,
+      amount: input.amount,
+      description: input.description,
+      createdBy: input.createdBy,
+      createdAt: new Date(),
+    });
 
-    // =========================
-    // CASH DRAWER IMPACT
-    // =========================
-    if (expense.isCashExpense()) {
-      await this.cashDrawerService.removeCash(
-        input.amount,
-        input.reason
-      );
-    }
-
-    // =========================
+    // =====================================
     // SAVE EXPENSE
-    // =========================
-    await this.expenseRepo.save(expense);
+    // =====================================
+
+    await this.expenseRepository.save(expense);
+
+    expense.markAsSaved();
+
+    // =====================================
+    // REDUCE CASH DRAWER
+    // =====================================
+
+    await this.cashDrawerService.registerExpense({
+  shiftId: input.shiftId,
+  amount: input.amount,
+  expenseId: expense.id,
+  description: input.description,
+});
+
+    // =====================================
+    // AUDIT EVENT
+    // =====================================
+
+    this.auditLogger?.log({
+      type: AuditEventType.EXPENSE_CREATED,
+      timestamp: new Date(),
+      data: {
+        expenseId: expense.id,
+        branchId: expense.branchId,
+        shiftId: expense.shiftId,
+        categoryId: expense.categoryId,
+        amount: expense.amount,
+        createdBy: expense.createdBy,
+      },
+    });
 
     return {
       success: true,
-      expenseId: expense.id,
+      expense,
     };
   }
 }

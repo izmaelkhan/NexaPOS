@@ -67,6 +67,49 @@ export class CashDrawerService {
   }
 
   // =========================
+// EXPENSE INTEGRATION
+// =========================
+async registerExpense(input: {
+  shiftId: string;
+  amount: number;
+  expenseId: string;
+  description?: string;
+}) {
+  if (input.amount <= 0) {
+    throw new Error("Expense amount must be greater than 0");
+  }
+
+  const shift = await this.shiftRepo.findById(input.shiftId);
+
+  if (!shift) {
+    throw new Error("Shift not found");
+  }
+
+  // Create expense cash movement
+  const movement = new CashMovement({
+    id: crypto.randomUUID(),
+    shiftId: input.shiftId,
+    amount: input.amount,
+    type: CashMovementType.EXPENSE,
+    referenceId: input.expenseId,
+    createdAt: new Date(),
+  });
+
+  await this.movementRepo.create(movement);
+
+  // Recalculate expected cash
+  const expected =
+    await this.calculateExpectedCash(input.shiftId);
+
+  return {
+    success: true,
+    movement,
+    expectedCash: expected.expectedCash,
+    message: input.description ?? "Expense recorded",
+  };
+}
+
+  // =========================
   // EXPECTED CASH
   // =========================
   async calculateExpectedCash(shiftId: string) {

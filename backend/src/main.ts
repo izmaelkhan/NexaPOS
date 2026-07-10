@@ -8,6 +8,10 @@ import storeRouter from "./presentation/routes/store.routes";
 import branchRouter from "./presentation/routes/branch.routes";
 import branchSwitchRouter from "./presentation/routes/branchSwitch.routes";
 import shiftRoutes from "./presentation/routes/shiftRoutes";
+
+import expensesRoutes from "./presentation/routes/expensesRoutes";
+import reportsRoutes from "./presentation/routes/reportsRoutes";
+
 config();
 
 const app = express();
@@ -32,6 +36,10 @@ app.use("/stores", storeRouter);
 app.use("/branches", branchRouter);
 app.use("/branch-switch", branchSwitchRouter);
 app.use("/shifts",shiftRoutes);
+
+app.use("/expenses", expensesRoutes);
+
+app.use("/reports", reportsRoutes);
 
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
