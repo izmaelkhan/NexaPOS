@@ -20,7 +20,7 @@ export class RefundIntegrationService {
     private readonly ledgerRepo: {
       createEntry(data: any): Promise<void>;
     },
-    private readonly auditLogger?: typeof AuditLogger
+private readonly auditLogger?: { log: (event: any) => void }
   ) {}
 
   async processRefund(input: RefundInput) {
